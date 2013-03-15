@@ -88,7 +88,10 @@
       ((number? expr) expr)
       ((eq? 'true expr) #t)
       ((eq? 'false expr) #f)
-      ((not (list? expr)) (if (eq? 'null (lookup expr environ)) (error "Using before declaring") (lookup expr environ)))
+      ((not (list? expr)) (cond
+                            ((eq? 'null (lookup expr environ)) (error "Using before declaring"))
+                            ((eq? '() (lookup expr environ)) (error "Using before assigning"))
+                            (else (lookup expr environ))))
       ((and (eq? '- (operator expr)) (null? (operand2 expr))) (evaluate-expr (* -1 (lookup (operand1 expr) environ)) environ))      ; Unary Minus -
       ((eq? '!= (operator expr)) (not (equal? (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))    ; Not equal !=
       ((eq? '&& (operator expr)) (and (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))             ; Logical AND &&
