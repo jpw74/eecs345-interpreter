@@ -49,7 +49,6 @@
 ; Takes a statement and an environment
 (define interpret-decl
   (lambda (stmt environ)
-    (lookup (operand1 stmt) environ)
     (if (null? (operand2 stmt))
       (add (operand1 stmt) '() environ)
       (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))
@@ -88,7 +87,7 @@
       ((number? expr) expr)
       ((eq? 'true expr) #t)
       ((eq? 'false expr) #f)
-      ((not (list? expr)) (lookup expr environ))
+      ((not (list? expr)) (if (eq? (lookup expr environ) '()) (error "Usage before assigning") (lookup expr environ)))
       ((and (eq? '- (operator expr)) (null? (operand2 expr))) (evaluate-expr (* -1 (lookup (operand1 expr) environ)) environ))      ; Unary Minus -
       ((eq? '!= (operator expr)) (not (equal? (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))    ; Not equal !=
       ((eq? '&& (operator expr)) (and (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))             ; Logical AND &&
