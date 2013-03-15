@@ -20,3 +20,13 @@
 (runtest "tests/test9.x" 5)
 (runtest "tests/test10.x" -39)
 ; test11, test12, test13, and test14 should error
+;(runtest "tests/test15.x" 'true)
+(runtest "tests/test16.x" 100)
+;(runtest "tests/test17.x" 'false)
+;(runtest "tests/test18.x" 'true)
+(runtest "tests/test19.x" 30)
+(runtest "tests/test20.x" 11)
+(runtest "tests/test21.x" 1106)
+(runtest "tests/test22.x" 12)
+(runtest "tests/test23.x" 16)
+(runtest "tests/test24.x" 72)

@@ -52,7 +52,10 @@
     (if (not (eq? 'null (lookup (operand1 stmt) environ))) (error "Redeclaring variable")
       (if (null? (operand2 stmt))
         (add (operand1 stmt) '() environ)
-        (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ)))))
+        (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
+          (let ((new-env (interpret-assign (operand2 stmt) environ)))
+            (add (operand1 stmt) (car (cdr (car new-env))) new-env))
+          (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))))
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
