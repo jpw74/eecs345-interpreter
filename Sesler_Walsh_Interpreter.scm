@@ -49,6 +49,7 @@
 ; Takes a statement and an environment
 (define interpret-decl
   (lambda (stmt environ)
+    (lookup (operand1 stmt) environ)
     (if (null? (operand2 stmt))
       (add (operand1 stmt) '() environ)
       (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))
@@ -58,6 +59,7 @@
 ; Works for arbitrarily deep nested assignments (i.e. a = b = c = 5), but it cannot return assignments inside expressions.
 (define interpret-assign
   (lambda (stmt environ)
+    (lookup (operand1 stmt) environ)
     (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
       (let ((new-env (interpret-assign (operand2 stmt) environ)))
         (add (operand1 stmt) (car (cdr (car new-env))) new-env))
@@ -165,6 +167,6 @@
 (define lookup
   (lambda (variable environ)
     (cond
-      ((null? environ) '())
+      ((null? environ) (error "Usage before declaring"))
       ((eq? variable (car (car environ))) (car (cdr (car environ))))
       (else (lookup variable (cdr environ))))))
