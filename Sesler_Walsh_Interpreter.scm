@@ -49,9 +49,10 @@
 ; Takes a statement and an environment
 (define interpret-decl
   (lambda (stmt environ)
-    (if (null? (operand2 stmt))
-      (add (operand1 stmt) '() environ)
-      (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))
+    (if (not (eq? 'null (lookup (operand1 stmt) environ))) (error "Redeclaring variable")
+      (if (null? (operand2 stmt))
+        (add (operand1 stmt) '() environ)
+        (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ)))))
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
