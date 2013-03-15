@@ -58,11 +58,11 @@
 ; Works for arbitrarily deep nested assignments (i.e. a = b = c = 5), but it cannot return assignments inside expressions.
 (define interpret-assign
   (lambda (stmt environ)
-    (lookup (operand1 stmt) environ)
+    (if (eq? 'null (lookup (operand1 stmt) environ)) (error "Using before declaring")
     (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
       (let ((new-env (interpret-assign (operand2 stmt) environ)))
         (add (operand1 stmt) (car (cdr (car new-env))) new-env))
-      (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))
+      (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ)))))
 
 ; Interprets return statements
 ; Takes a statement and an environment
@@ -87,7 +87,7 @@
       ((number? expr) expr)
       ((eq? 'true expr) #t)
       ((eq? 'false expr) #f)
-      ((not (list? expr)) (if (eq? (lookup expr environ) '()) (error "Usage before assigning") (lookup expr environ)))
+      ((not (list? expr)) (if (eq? 'null (lookup expr environ)) (error "Using before declaring") (lookup expr environ)))
       ((and (eq? '- (operator expr)) (null? (operand2 expr))) (evaluate-expr (* -1 (lookup (operand1 expr) environ)) environ))      ; Unary Minus -
       ((eq? '!= (operator expr)) (not (equal? (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))    ; Not equal !=
       ((eq? '&& (operator expr)) (and (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))             ; Logical AND &&
@@ -166,6 +166,6 @@
 (define lookup
   (lambda (variable environ)
     (cond
-      ((null? environ) (error "Usage before declaring"))
+      ((null? environ) 'null)
       ((eq? variable (car (car environ))) (car (cdr (car environ))))
       (else (lookup variable (cdr environ))))))
