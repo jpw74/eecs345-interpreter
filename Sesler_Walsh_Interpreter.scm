@@ -30,20 +30,20 @@
   (lambda (stmt environ)
       ; if there is a nested assignment statement, create a new environment by interpreting it 
       ; and pass the resulting environment to the parent statement
-      (let ((ass (find-assignment stmt)))
-        (if (null? ass)
+      ;(let ((ass (find-assignment stmt)))
+        ;(if (null? ass)
             (cond
               ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
               ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
               ((eq? '= (operator stmt)) (interpret-assign stmt environ))
               ((eq? 'return (operator stmt)) (interpret-return stmt environ))
-              ((eq? 'if (operator stmt)) (interpret-if stmt environ)))
-            (cond
-              ((null? stmt) (interpret-assign ass environ))
-              ((eq? 'var (operator stmt)) (interpret-decl stmt (interpret-assign ass environ)))
-              ((eq? '= (operator stmt)) (interpret-assign stmt (interpret-assign ass environ)))
-              ((eq? 'return (operator stmt)) (interpret-return stmt (interpret-assign ass environ)))
-              ((eq? 'if (operator stmt)) (interpret-if stmt (interpret-assign ass environ))))))))
+              ((eq? 'if (operator stmt)) (interpret-if stmt environ)))))
+            ;(cond
+             ; ((null? stmt) (interpret-assign ass environ))
+              ;((eq? 'var (operator stmt)) (interpret-decl stmt (interpret-assign ass environ)))
+              ;((eq? '= (operator stmt)) (interpret-assign stmt (interpret-assign ass environ)))
+              ;((eq? 'return (operator stmt)) (interpret-return stmt (interpret-assign ass environ)))
+              ;((eq? 'if (operator stmt)) (interpret-if stmt (interpret-assign ass environ))))))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
