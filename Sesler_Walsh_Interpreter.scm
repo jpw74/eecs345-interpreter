@@ -30,27 +30,26 @@
   (lambda (stmt environ)
       ; if there is a nested assignment statement, create a new environment by interpreting it 
       ; and pass the resulting environment to the parent statement
-      (let ((ass (find-assignment stmt)))
-        (if (null? ass)
+      ;(let ((ass (find-assignment stmt)))
+        ;(if (null? ass)
             (cond
               ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
               ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
               ((eq? '= (operator stmt)) (interpret-assign stmt environ))
               ((eq? 'return (operator stmt)) (interpret-return stmt environ))
-              ((eq? 'if (operator stmt)) (interpret-if stmt environ)))
-            (cond
-              ((null? stmt) (interpret-assign ass environ))
-              ((eq? 'var (operator stmt)) (interpret-decl stmt (interpret-assign ass environ)))
-              ((eq? '= (operator stmt)) (interpret-assign stmt (interpret-assign ass environ)))
-              ((eq? 'return (operator stmt)) (interpret-return stmt (interpret-assign ass environ)))
-              ((eq? 'if (operator stmt)) (interpret-if stmt environ)))))))
+              ((eq? 'if (operator stmt)) (interpret-if stmt environ)))))
+            ;(cond
+             ; ((null? stmt) (interpret-assign ass environ))
+              ;((eq? 'var (operator stmt)) (interpret-decl stmt (interpret-assign ass environ)))
+              ;((eq? '= (operator stmt)) (interpret-assign stmt (interpret-assign ass environ)))
+              ;((eq? 'return (operator stmt)) (interpret-return stmt (interpret-assign ass environ)))
+              ;((eq? 'if (operator stmt)) (interpret-if stmt (interpret-assign ass environ))))))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
 (define interpret-decl
   (lambda (stmt environ)
-    (if (not (eq? 'null (lookup (operand1 stmt) environ))) 
-      (error "Redeclaring variable")
+    (if (not (eq? 'null (lookup (operand1 stmt) environ))) (error "Redeclaring variable")
       (if (null? (operand2 stmt))
         (add (operand1 stmt) '() environ)
         (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
@@ -79,16 +78,9 @@
 ; Takes a statement and an environment
 (define interpret-if
   (lambda (stmt environ)
-    ; nested assignment needs to be in the conditional, otherwise find-assignment
-    ; picks out assignment from the body and throws everything off
-    (let ((ass (find-assignment (operand1 stmt))))
-      (if (null? ass)
-        (if (evaluate-expr (operand1 stmt) environ) 
-          (interpret-stmt (operand2 stmt) environ)
-          (interpret-stmt (operand3 stmt) environ))
-        (if (evaluate-expr (operand1 stmt) environ)
-          (interpret-stmt (operand2 stmt) (interpret-assign ass environ))
-          (interpret-stmt (operand3 stmt) (interpret-assign ass environ)))))))
+    (if (evaluate-expr (operand1 stmt) environ)
+        (interpret-stmt (operand2 stmt) environ)
+        (interpret-stmt (operand3 stmt) environ))))
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
@@ -127,12 +119,11 @@
 
 ; Finds an assignment statement inside an expression if it exists
 ; Takes a statement
-(define find-assignments
+(define find-assignment
   (lambda (stmt)
     (cond
       ((null? stmt) '())
-      ((and (list? (car stmt)) (eq? '= (operator (car stmt)))) (cons (car stmt) (find-assignments (cdr stmt))))
-      ((list? (car stmt)) (cons (find-assignment (car stmt)) (find-assignments (cdr stmt))))
+      ((and (list? (car stmt)) (eq? '= (operator (car stmt)))) (car stmt))
       (else (find-assignment (cdr stmt))))))
       
 ; Returns the operator of a statement
