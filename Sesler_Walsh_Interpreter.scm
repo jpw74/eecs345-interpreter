@@ -54,7 +54,7 @@
         (add (operand1 stmt) '() environ)
         (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
           (let ((new-env (interpret-assign (operand2 stmt) environ)))
-            (add (operand1 stmt) (car (cdr (car new-env))) new-env))
+            (add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
           (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))))
 
 ; Interprets assignment statements
@@ -65,7 +65,7 @@
     (if (eq? 'null (lookup (operand1 stmt) environ)) (error "Using before declaring")
     (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
       (let ((new-env (interpret-assign (operand2 stmt) environ)))
-        (add (operand1 stmt) (car (cdr (car new-env))) new-env))
+        (add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
       (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ)))))
 
 ; Interprets return statements
@@ -99,7 +99,7 @@
       ((eq? '!= (operator expr)) (not (equal? (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))    ; Not equal !=
       ((eq? '&& (operator expr)) (and (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))             ; Logical AND &&
       ((eq? '|| (operator expr)) (or (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))              ; Logical OR || 
-      ((eq? '= (operator expr)) (car (cdr (car (interpret-assign expr environ)))))                  
+      ((eq? '= (operator expr)) (lookup (operand1 expr) (interpret-assign expr environ)))                  
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))))
 
 
