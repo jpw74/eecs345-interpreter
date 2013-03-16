@@ -160,19 +160,43 @@
 ; Takes no input
 (define new-environ
   (lambda ()
-    '()))
+    '(()())))
 
 ; Adds an element to the environment
 ; Takes a variable name, a value for that variable, and an environment
 (define add
   (lambda (variable value environ)
-    (cons (list variable value) environ)))
+    (let ((b (get-box variable environ)))
+      (if (eq? 'null b)
+          (list (cons variable (car environ)) (cons (box value) (car (cdr environ))))
+          (begin
+            (set-box! b value) 
+            environ)))))
 
 ; Finds a specified element in the environment and returns its bound value
 ; Takes a variable name and an environment
 (define lookup
   (lambda (variable environ)
     (cond
-      ((null? environ) 'null)
-      ((eq? variable (car (car environ))) (car (cdr (car environ))))
-      (else (lookup variable (cdr environ))))))
+      ((and (null? (car environ)) (null? (car (cdr environ)))) 'null)
+      ((eq? variable (car (car environ))) (unbox (car (car (cdr environ)))))
+      (else (lookup variable (list (cdr (car environ)) (cdr (car (cdr environ)))))))))
+
+(define get-box
+  (lambda (variable environ)
+    (cond
+      ((and (null? (car environ)) (null? (car (cdr environ)))) 'null)
+      ((eq? variable (car (car environ))) (car (car (cdr environ))))
+      (else (get-box variable (list (cdr (car environ)) (cdr (car (cdr environ)))))))))
+
+(define box
+  (lambda (v)
+    (list v)))
+
+(define unbox
+  (lambda (b)
+    (car b)))
+
+(define set-box!
+  (lambda (b v)
+    (set-car! b v)))
