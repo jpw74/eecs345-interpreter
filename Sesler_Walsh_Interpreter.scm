@@ -7,7 +7,7 @@
 ; statements, mathematical expressions, comparison operators, boolean operators, simple 
 ; if statements, and return statements.
 
-(load "verySimpleParser.scm")
+(load "loopSimpleParser.scm")
 
 ; The main interpret function
 ; Takes a filename
@@ -49,7 +49,7 @@
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
-; Works for arbitrarily deep nested assignments (i.e. a = b = c = 5), but it cannot return assignments inside expressions.
+; Works for arbitrarily deep nested assignments (i.e. a = b = c = 5)
 (define interpret-assign
   (lambda (stmt environ)
     (if (eq? 'null (lookup (operand1 stmt) environ)) (error "Using before declaring")
@@ -167,10 +167,23 @@
 ; Takes a variable name and an environment
 (define lookup
   (lambda (variable environ)
-    (cond
-      ((and (null? (car environ)) (null? (car (cdr environ)))) 'null)
-      ((eq? variable (car (car environ))) (unbox (car (car (cdr environ)))))
-      (else (lookup variable (list (cdr (car environ)) (cdr (car (cdr environ)))))))))
+    (if (> (length environ) 2)
+      (let ((val (lookup variable (car environ))))
+        (if (eq? val 'null)
+          (lookup variable (cdr environ))
+          val))
+      (cond
+        ((and (null? (vars environ)) (null? (vals environ))) 'null)
+        ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
+        (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+
+(define vars
+  (lambda (environ)
+    (car environ)))
+
+(define vals
+  (lambda (environ)
+    (car (cdr environ))))
 
 (define get-box
   (lambda (variable environ)
