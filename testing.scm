@@ -30,3 +30,11 @@
 (runtest "tests/test22.x" 12)
 (runtest "tests/test23.x" 16)
 (runtest "tests/test24.x" 72)
+
+(runtest "tests/test25.x" 5)
+(runtest "tests/test26.x" 7)
+(runtest "tests/test27.x" 17)
+(runtest "tests/test28.x" 12)
+(runtest "tests/test29.x" 6)
+(runtest "tests/test30.x" 10)
+(runtest "tests/test31.x" 7)
