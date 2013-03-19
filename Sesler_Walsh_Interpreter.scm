@@ -158,7 +158,7 @@
   (lambda (variable value environ)
     (let ((b (get-box variable environ)))
       (if (eq? 'null b)
-          (list (cons variable (car environ)) (cons (box value) (car (cdr environ))))
+          (list (cons variable (vars environ)) (cons (box value) (vals environ)))
           (begin
             (set-box! b value) 
             environ)))))
@@ -187,10 +187,15 @@
 
 (define get-box
   (lambda (variable environ)
-    (cond
-      ((and (null? (car environ)) (null? (car (cdr environ)))) 'null)
-      ((eq? variable (car (car environ))) (car (car (cdr environ))))
-      (else (get-box variable (list (cdr (car environ)) (cdr (car (cdr environ)))))))))
+    (if (> (length environ) 2)
+      (let ((b (get-box variable (car environ))))
+        (if (eq? b 'null)
+          (get-box variable (cdr environ))
+          b))
+      (cond
+        ((and (null? (vars environ)) (null? (vals environ))) 'null)
+        ((eq? variable (car (vars environ))) (car (vals environ)))
+        (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
 (define box
   (lambda (v)
