@@ -4,3 +4,4 @@ while (x <= 4) {
     total = total + x;
     x = x + 1;
 }
+return total;

@@ -1,7 +1,7 @@
 ; Timothy Sesler
 ; Jason Walsh
-; EECS 345 - Interpreter Project, Part I
-; 24 February 2013
+; EECS 345 - Interpreter Project, Part II
+; 20 March 2013
 
 ; An interpreter for a simple Java-like language that handles variables, assignment 
 ; statements, mathematical expressions, comparison operators, boolean operators, simple 
@@ -30,14 +30,16 @@
 ; Takes a statement and an environment
 (define interpret-stmt
   (lambda (stmt environ return)
-    (cond
-      ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
-      ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
-      ((eq? '= (operator stmt)) (interpret-assign stmt environ))
-      ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
-      ((eq? 'if (operator stmt)) (interpret-if stmt environ return))
-      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
-      ((eq? 'while (operator stmt)) (interpret-while stmt environ return)))))
+    (call/cc (lambda (break)
+               (cond
+                 ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
+                 ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
+                 ((eq? '= (operator stmt)) (interpret-assign stmt environ))
+                 ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
+                 ((eq? 'if (operator stmt)) (interpret-if stmt environ return))
+                 ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
+                 ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
+                 ((eq? 'break (operator stmt)) (break environ)))))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
@@ -84,13 +86,16 @@
 ; Interprets while loops
 ; Takes a statement, an environment, and a return
 (define interpret-while
-  (lambda (stmt environ return)
-    (call/cc (lambda (break)
-             (letrec ((loop 
-                       (lambda (condition body environ)
-                         (if (evaluate-expr condition environ)
-                             (loop condition body (interpret-stmt body environ return) break)
-                             (loop condition body (interpret-stmt body environ return)))))))))))
+  (lambda (stmt environ return)  
+    ;(letrec ((loop 
+     ;         (lambda (condition body environ return break)
+      ;          (if (evaluate-expr condition environ)
+       ;             (loop condition body (interpret-stmt body environ return break)
+        ;            environ))))
+      ;(loop (operand1 stmt) (operand2 stmt) environ return break))))
+    (if (evaluate-expr (operand1 stmt) environ)
+        (interpret-while stmt (interpret-stmt (operand2 stmt) environ return) return)
+        environ)))
 
 (define interpret-block
   (lambda (stmt environ return)
@@ -246,14 +251,14 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-(define box
-  (lambda (v)
-    (list v)))
+;(define box
+ ; (lambda (v)
+  ;  (list v)))
 
-(define unbox
-  (lambda (b)
-    (car b)))
+;(define unbox
+ ; (lambda (b)
+  ;  (car b)))
 
-(define set-box!
-  (lambda (b v)
-    (set-car! b v)))
+;(define set-box!
+ ; (lambda (b v)
+  ;  (set-car! b v)))
