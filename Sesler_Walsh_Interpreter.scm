@@ -33,19 +33,20 @@
       ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
       ((eq? '= (operator stmt)) (interpret-assign stmt environ))
       ((eq? 'return (operator stmt)) (interpret-return stmt environ))
-      ((eq? 'if (operator stmt)) (interpret-if stmt environ)))))
+      ((eq? 'if (operator stmt)) (interpret-if stmt environ))
+      ((eq? 'begin (operator stmt)) (interpret-block stmt environ)))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
 (define interpret-decl
   (lambda (stmt environ)
-    (if (not (eq? 'null (lookup (operand1 stmt) environ))) (error "Redeclaring variable")
+    (if (not (eq? 'null (shallow-lookup (operand1 stmt) environ))) (error "Redeclaring variable")
       (if (null? (operand2 stmt))
-        (add (operand1 stmt) '() environ)
+        (shallow-add (operand1 stmt) '() environ)
         (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
           (let ((new-env (interpret-assign (operand2 stmt) environ)))
-            (add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
-          (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))))
+            (shallow-add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
+          (shallow-add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))))
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
@@ -71,6 +72,10 @@
     (if (evaluate-expr (operand1 stmt) environ)
         (interpret-stmt (operand2 stmt) environ)
         (interpret-stmt (operand3 stmt) environ))))
+
+(define interpret-block
+  (lambda (stmt environ)
+    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ)))))
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
@@ -163,6 +168,12 @@
             (set-box! b value) 
             environ)))))
 
+(define shallow-add
+  (lambda (variable value environ)
+    (if (> (length environ) 2)
+      (cons (add variable value (car environ)) (cdr environ))
+      (add variable value environ))))
+
 ; Finds a specified element in the environment and returns its bound value
 ; Takes a variable name and an environment
 (define lookup
@@ -172,6 +183,16 @@
         (if (eq? val 'null)
           (lookup variable (cdr environ))
           val))
+      (cond
+        ((and (null? (vars environ)) (null? (vals environ))) 'null)
+        ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
+        (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+
+; only lookup within the current block - needed to check against redeclaring
+(define shallow-lookup
+  (lambda (variable environ)
+    (if (> (length environ) 2)
+      (lookup variable (car environ))
       (cond
         ((and (null? (vars environ)) (null? (vals environ))) 'null)
         ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
@@ -192,6 +213,15 @@
         (if (eq? b 'null)
           (get-box variable (cdr environ))
           b))
+      (cond
+        ((and (null? (vars environ)) (null? (vals environ))) 'null)
+        ((eq? variable (car (vars environ))) (car (vals environ)))
+        (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+
+(define shallow-get-box
+  (lambda (variable environ)
+    (if (> (length environ) 2)
+      (get-box variable (car environ))
       (cond
         ((and (null? (vars environ)) (null? (vals environ))) 'null)
         ((eq? variable (car (vars environ))) (car (vals environ)))
