@@ -36,7 +36,8 @@
       ((eq? '= (operator stmt)) (interpret-assign stmt environ))
       ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
       ((eq? 'if (operator stmt)) (interpret-if stmt environ return))
-      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return)))))
+      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
+      ((eq? 'while (operator stmt)) (interpret-while stmt environ return)))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
@@ -79,6 +80,17 @@
     (if (evaluate-expr (operand1 stmt) environ)
         (interpret-stmt (operand2 stmt) environ return)
         (interpret-stmt (operand3 stmt) environ return))))
+
+; Interprets while loops
+; Takes a statement, an environment, and a return
+(define interpret-while
+  (lambda (stmt environ return)
+    (call/cc (lambda (break)
+             (letrec ((loop 
+                       (lambda (condition body environ)
+                         (if (evaluate-expr condition environ)
+                             (loop condition body (interpret-stmt body environ return) break)
+                             (loop condition body (interpret-stmt body environ return)))))))))))
 
 (define interpret-block
   (lambda (stmt environ return)
