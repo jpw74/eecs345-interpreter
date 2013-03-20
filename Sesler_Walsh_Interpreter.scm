@@ -13,28 +13,30 @@
 ; Takes a filename
 (define interpret
   (lambda (filename)
-    (lookup 'return (interpret-stmt-list (parser filename) (new-environ)))))
+    ;(lookup 'return (interpret-stmt-list (parser filename) (new-environ)))))
+    (call/cc (lambda (return)
+               (interpret-stmt-list (parser filename) (new-environ) return)))))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
 (define interpret-stmt-list
-  (lambda (stmt-list environ)
+  (lambda (stmt-list environ return)
     (cond
       ((null? stmt-list) '())
-      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ))
-      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ))))))
+      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return))
+      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return) return)))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
 (define interpret-stmt
-  (lambda (stmt environ)
+  (lambda (stmt environ return)
     (cond
       ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
       ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
       ((eq? '= (operator stmt)) (interpret-assign stmt environ))
-      ((eq? 'return (operator stmt)) (interpret-return stmt environ))
-      ((eq? 'if (operator stmt)) (interpret-if stmt environ))
-      ((eq? 'begin (operator stmt)) (interpret-block stmt environ)))))
+      ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
+      ((eq? 'if (operator stmt)) (interpret-if stmt environ return))
+      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return)))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
@@ -62,20 +64,21 @@
 ; Interprets return statements
 ; Takes a statement and an environment
 (define interpret-return
-  (lambda (stmt environ)
-    (add 'return (evaluate-expr (operand1 stmt) environ) environ)))
+  (lambda (stmt environ return)
+    (return (evaluate-expr (operand1 stmt) environ))))
+    
 
 ; Interprets if statements
 ; Takes a statement and an environment
 (define interpret-if
-  (lambda (stmt environ)
+  (lambda (stmt environ return)
     (if (evaluate-expr (operand1 stmt) environ)
-        (interpret-stmt (operand2 stmt) environ)
-        (interpret-stmt (operand3 stmt) environ))))
+        (interpret-stmt (operand2 stmt) environ return)
+        (interpret-stmt (operand3 stmt) environ return))))
 
 (define interpret-block
-  (lambda (stmt environ)
-    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ)))))
+  (lambda (stmt environ return)
+    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return))))
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
