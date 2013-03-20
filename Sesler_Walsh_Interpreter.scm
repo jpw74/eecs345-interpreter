@@ -23,20 +23,19 @@
   (lambda (stmt-list environ return)
     (cond
       ((null? stmt-list) '())
-      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v)))
-      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v)) return)))))
+      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)))
+      (else (call/cc (lambda (break) (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) break) return)))))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
 (define interpret-stmt
-  (lambda (stmt environ return continue)
-    ;(call/cc (lambda (break)
+  (lambda (stmt environ return continue break)
                (cond
                  ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
                  ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
                  ((eq? '= (operator stmt)) (interpret-assign stmt environ))
                  ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
-                 ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue))
+                 ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
                  ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
                  ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
                  ((eq? 'break (operator stmt)) (break environ))
@@ -83,10 +82,10 @@
 ; Interprets if statements
 ; Takes a statement and an environment
 (define interpret-if
-  (lambda (stmt environ return continue)
+  (lambda (stmt environ return continue break)
     (if (evaluate-expr (operand1 stmt) environ)
-        (interpret-stmt (operand2 stmt) environ return continue)
-        (interpret-stmt (operand3 stmt) environ return continue))))
+        (interpret-stmt (operand2 stmt) environ return continue break)
+        (interpret-stmt (operand3 stmt) environ return continue break))))
 
 ; Interprets while loops
 ; Takes a statement, an environment, and a return
@@ -94,7 +93,7 @@
   (call/cc (lambda (continue)
              (lambda (stmt environ return)  
                (if (evaluate-expr (operand1 stmt) environ)
-                   (interpret-while stmt (interpret-stmt (operand2 stmt) environ return continue) return)
+                   (interpret-while stmt (interpret-stmt (operand2 stmt) environ return continue (lambda (v) v)) return)
                    environ)))))
   
 (define interpret-block
