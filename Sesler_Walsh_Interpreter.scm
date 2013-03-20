@@ -23,23 +23,24 @@
   (lambda (stmt-list environ return)
     (cond
       ((null? stmt-list) '())
-      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return))
-      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return) return)))))
+      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v)))
+      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v)) return)))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
 (define interpret-stmt
-  (lambda (stmt environ return)
-    (call/cc (lambda (break)
+  (lambda (stmt environ return continue)
+    ;(call/cc (lambda (break)
                (cond
                  ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
                  ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
                  ((eq? '= (operator stmt)) (interpret-assign stmt environ))
                  ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
-                 ((eq? 'if (operator stmt)) (interpret-if stmt environ return))
+                 ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue))
                  ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
                  ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
-                 ((eq? 'break (operator stmt)) (break environ)))))))
+                 ((eq? 'break (operator stmt)) (break environ))
+                 ((eq? 'continue (operator stmt)) (continue environ)))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
@@ -72,31 +73,30 @@
 ; Takes a statement and an environment
 (define interpret-return
   (lambda (stmt environ return)
-    (return (evaluate-expr (operand1 stmt) environ))))
+    (let ((ret-val (evaluate-expr (operand1 stmt) environ)))
+      (cond
+        ((eq? #t ret-val) (return 'true))
+        ((eq? #f ret-val) (return 'false))
+        (else (return ret-val))))))
     
 
 ; Interprets if statements
 ; Takes a statement and an environment
 (define interpret-if
-  (lambda (stmt environ return)
+  (lambda (stmt environ return continue)
     (if (evaluate-expr (operand1 stmt) environ)
-        (interpret-stmt (operand2 stmt) environ return)
-        (interpret-stmt (operand3 stmt) environ return))))
+        (interpret-stmt (operand2 stmt) environ return continue)
+        (interpret-stmt (operand3 stmt) environ return continue))))
 
 ; Interprets while loops
 ; Takes a statement, an environment, and a return
 (define interpret-while
-  (lambda (stmt environ return)  
-    ;(letrec ((loop 
-     ;         (lambda (condition body environ return break)
-      ;          (if (evaluate-expr condition environ)
-       ;             (loop condition body (interpret-stmt body environ return break)
-        ;            environ))))
-      ;(loop (operand1 stmt) (operand2 stmt) environ return break))))
-    (if (evaluate-expr (operand1 stmt) environ)
-        (interpret-while stmt (interpret-stmt (operand2 stmt) environ return) return)
-        environ)))
-
+  (call/cc (lambda (continue)
+             (lambda (stmt environ return)  
+               (if (evaluate-expr (operand1 stmt) environ)
+                   (interpret-while stmt (interpret-stmt (operand2 stmt) environ return continue) return)
+                   environ)))))
+  
 (define interpret-block
   (lambda (stmt environ return)
     (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return))))
@@ -118,6 +118,7 @@
       ((eq? '!= (operator expr)) (not (equal? (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))    ; Not equal !=
       ((eq? '&& (operator expr)) (and (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))             ; Logical AND &&
       ((eq? '|| (operator expr)) (or (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))              ; Logical OR || 
+      ((eq? '! (operator expr)) (not (evaluate-expr (operand1 expr) environ)))
       ((eq? '= (operator expr)) (lookup (operand1 expr) (interpret-assign expr environ)))                  
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))))
 
