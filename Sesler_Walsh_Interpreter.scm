@@ -40,6 +40,8 @@
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
+; For a declaration, we want to use shallow-add - we are allowed to redeclare
+;   variables within a block
 (define interpret-decl
   (lambda (stmt environ)
     (if (not (eq? 'null (shallow-lookup (operand1 stmt) environ))) (error "Redeclaring variable")
@@ -53,6 +55,8 @@
 ; Interprets assignment statements
 ; Takes a statement and an environment
 ; Works for arbitrarily deep nested assignments (i.e. a = b = c = 5)
+; For an assignment, we want to deeply add - reassigning within a block affects
+;   containing blocks
 (define interpret-assign
   (lambda (stmt environ)
     (if (eq? 'null (lookup (operand1 stmt) environ)) (error "Using before declaring")
