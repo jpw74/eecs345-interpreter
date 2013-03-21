@@ -15,7 +15,8 @@
   (lambda (filename)
     ;(lookup 'return (interpret-stmt-list (parser filename) (new-environ)))))
     (call/cc (lambda (return)
-               (interpret-stmt-list (parser filename) (new-environ) return)))))
+               ;(interpret-stmt-list (parser filename) (new-environ) return)))))
+               (interpret-parse-tree (parser filename) (new-environ) return (lambda (v) v))))))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
@@ -25,6 +26,14 @@
       ((null? stmt-list) '())
       ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)))
       (else (call/cc (lambda (break) (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) break) return)))))))
+
+(define interpret-parse-tree
+  (lambda (pt environ return k)
+    (cond
+      ((null? pt) (k environ))
+      ((null? (cdr pt)) (k (interpret-stmt (car pt) environ return (lambda (v) v) (lambda (v) v))))
+      ((list? (car pt)) (interpret-parse-tree (car pt) environ return (lambda (new-env) (k (interpret-parse-tree (cdr pt) new-env return (lambda (v) v))))))
+      (else (k (interpret-stmt pt environ return (lambda (v) v) (lambda (v) v)))))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
@@ -251,14 +260,14 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-;(define box
- ; (lambda (v)
-  ;  (list v)))
+(define box
+  (lambda (v)
+    (list v)))
 
-;(define unbox
- ; (lambda (b)
-  ;  (car b)))
+(define unbox
+  (lambda (b)
+    (car b)))
 
-;(define set-box!
- ; (lambda (b v)
-  ;  (set-car! b v)))
+(define set-box!
+  (lambda (b v)
+    (set-car! b v)))
