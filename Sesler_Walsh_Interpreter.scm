@@ -13,10 +13,8 @@
 ; Takes a filename
 (define interpret
   (lambda (filename)
-    ;(lookup 'return (interpret-stmt-list (parser filename) (new-environ)))))
     (call/cc (lambda (return)
-               (interpret-stmt-list (parser filename) (new-environ) return (lambda (v) v))))))
-               ;(interpret-parse-tree (parser filename) (new-environ) return (lambda (v) v))))))
+               (interpret-stmt-list (parser filename) (new-environ) return (lambda (v) v))))))               
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
@@ -26,15 +24,6 @@
       ((null? stmt-list) '())
       ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)))
       (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) break) return break)))))
-
-(define interpret-parse-tree
-  (lambda (pt environ return k)
-    (call/cc (lambda (break)
-               (cond
-                 ((null? pt) (k environ))
-                 ((null? (cdr pt)) (k (interpret-stmt (car pt) environ return (lambda (v) v) break)))
-                 ((list? (car pt)) (interpret-parse-tree (car pt) environ return (lambda (new-env) (k (interpret-parse-tree (cdr pt) new-env return (lambda (v) v))))))
-                 (else (k (interpret-stmt pt environ return (lambda (v) v) break))))))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
@@ -116,7 +105,7 @@
 ; Takes a statement, an environment, and a return
 (define interpret-block
   (lambda (stmt environ return)
-    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return (lambda (v) v)))))
+    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return (lambda (v) v)))))    
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
