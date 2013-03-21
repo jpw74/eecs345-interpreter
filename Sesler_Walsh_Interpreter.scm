@@ -15,41 +15,41 @@
   (lambda (filename)
     ;(lookup 'return (interpret-stmt-list (parser filename) (new-environ)))))
     (call/cc (lambda (return)
-               ;(interpret-stmt-list (parser filename) (new-environ) return)))))
-               (interpret-parse-tree (parser filename) (new-environ) return (lambda (v) v))))))
+               (interpret-stmt-list (parser filename) (new-environ) return (lambda (v) v))))))
+               ;(interpret-parse-tree (parser filename) (new-environ) return (lambda (v) v))))))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
 (define interpret-stmt-list
-  (lambda (stmt-list environ return)
+  (lambda (stmt-list environ return break)
     (cond
       ((null? stmt-list) '())
       ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)))
-      (else (call/cc (lambda (break) (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) break) return)))))))
+      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) break) return break)))))
 
 (define interpret-parse-tree
   (lambda (pt environ return k)
     (call/cc (lambda (break)
-    (cond
-      ((null? pt) (k environ))
-      ((null? (cdr pt)) (k (interpret-stmt (car pt) environ return (lambda (v) v) break)))
-      ((list? (car pt)) (interpret-parse-tree (car pt) environ return (lambda (new-env) (k (interpret-parse-tree (cdr pt) new-env return (lambda (v) v))))))
-      (else (k (interpret-stmt pt environ return (lambda (v) v) break))))))))
+               (cond
+                 ((null? pt) (k environ))
+                 ((null? (cdr pt)) (k (interpret-stmt (car pt) environ return (lambda (v) v) break)))
+                 ((list? (car pt)) (interpret-parse-tree (car pt) environ return (lambda (new-env) (k (interpret-parse-tree (cdr pt) new-env return (lambda (v) v))))))
+                 (else (k (interpret-stmt pt environ return (lambda (v) v) break))))))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
 (define interpret-stmt
   (lambda (stmt environ return continue break)
-               (cond
-                 ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
-                 ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
-                 ((eq? '= (operator stmt)) (interpret-assign stmt environ))
-                 ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
-                 ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
-                 ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
-                 ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
-                 ((eq? 'break (operator stmt)) (break environ))
-                 ((eq? 'continue (operator stmt)) (continue environ)))))
+    (cond
+      ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
+      ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
+      ((eq? '= (operator stmt)) (interpret-assign stmt environ))
+      ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
+      ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
+      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
+      ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
+      ((eq? 'break (operator stmt)) (break environ))
+      ((eq? 'continue (operator stmt)) (continue environ)))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
@@ -99,16 +99,24 @@
 
 ; Interprets while loops
 ; Takes a statement, an environment, and a return
-(define interpret-while
-  (call/cc (lambda (continue)
-             (lambda (stmt environ return)  
-               (if (evaluate-expr (operand1 stmt) environ)
-                   (interpret-while stmt (interpret-stmt (operand2 stmt) environ return continue (lambda (v) v)) return)
-                   environ)))))
-  
+(define interpret-while  
+  (lambda (stmt environ return)  
+    (call/cc (lambda (break)                          
+               (letrec ((loop (lambda (cond body environ)
+                                (if (evaluate-expr cond environ)
+                                    (loop cond body (call/cc 
+                                                     (lambda (continue) 
+                                                       (interpret-stmt body environ return break 
+                                                                       (lambda (new-environ)
+                                                                         (loop cond body new-environ))))))
+                                    (break environ)))))
+                 (loop (operand1 stmt) (operand2 stmt) environ))))))
+
+; Interprets blocks of code
+; Takes a statement, an environment, and a return
 (define interpret-block
   (lambda (stmt environ return)
-    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return))))
+    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return (lambda (v) v)))))
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
@@ -131,7 +139,8 @@
       ((eq? '= (operator expr)) (lookup (operand1 expr) (interpret-assign expr environ)))                  
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))))
 
-
+; Helper function to assist evaluate-expr
+; Applies the appropriate mathematical operator
 (define atom-to-func
   (lambda (atom)
     (cond
@@ -261,14 +270,14 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-(define box
-  (lambda (v)
-    (list v)))
+;(define box
+;  (lambda (v)
+ ;   (list v)))
 
-(define unbox
-  (lambda (b)
-    (car b)))
+;(define unbox
+;  (lambda (b)
+ ;   (car b)))
 
-(define set-box!
-  (lambda (b v)
-    (set-car! b v)))
+;(define set-box!
+;  (lambda (b v)
+ ;   (set-car! b v)))
