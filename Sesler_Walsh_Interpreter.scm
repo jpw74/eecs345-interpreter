@@ -29,11 +29,12 @@
 
 (define interpret-parse-tree
   (lambda (pt environ return k)
+    (call/cc (lambda (break)
     (cond
       ((null? pt) (k environ))
-      ((null? (cdr pt)) (k (interpret-stmt (car pt) environ return (lambda (v) v) (lambda (v) v))))
+      ((null? (cdr pt)) (k (interpret-stmt (car pt) environ return (lambda (v) v) break)))
       ((list? (car pt)) (interpret-parse-tree (car pt) environ return (lambda (new-env) (k (interpret-parse-tree (cdr pt) new-env return (lambda (v) v))))))
-      (else (k (interpret-stmt pt environ return (lambda (v) v) (lambda (v) v)))))))
+      (else (k (interpret-stmt pt environ return (lambda (v) v) break))))))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
