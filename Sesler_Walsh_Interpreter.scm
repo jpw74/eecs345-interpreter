@@ -15,8 +15,7 @@
   (lambda (filename)
     ;(lookup 'return (interpret-stmt-list (parser filename) (new-environ)))))
     (call/cc (lambda (return)
-               ;(interpret-stmt-list (parser filename) (new-environ) return)))))
-               (interpret-parse-tree (parser filename) (new-environ) return (lambda (v) v))))))
+               (interpret-stmt-list (parser filename) (new-environ) return)))))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
@@ -25,16 +24,7 @@
     (cond
       ((null? stmt-list) '())
       ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)))
-      (else (call/cc (lambda (break) (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) break) return)))))))
-
-(define interpret-parse-tree
-  (lambda (pt environ return k)
-    (call/cc (lambda (break)
-    (cond
-      ((null? pt) (k environ))
-      ((null? (cdr pt)) (k (interpret-stmt (car pt) environ return (lambda (v) v) break)))
-      ((list? (car pt)) (interpret-parse-tree (car pt) environ return (lambda (new-env) (k (interpret-parse-tree (cdr pt) new-env return (lambda (v) v))))))
-      (else (k (interpret-stmt pt environ return (lambda (v) v) break))))))))
+      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)) return)))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
@@ -100,15 +90,17 @@
 ; Interprets while loops
 ; Takes a statement, an environment, and a return
 (define interpret-while
-  (call/cc (lambda (continue)
-             (lambda (stmt environ return)  
-               (if (evaluate-expr (operand1 stmt) environ)
-                   (interpret-while stmt (interpret-stmt (operand2 stmt) environ return continue (lambda (v) v)) return)
-                   environ)))))
+  (lambda (stmt environ return)
+    (call/cc (lambda (break)
+               (letrec ((loop (lambda (condition body environ)
+                                (if (evaluate-expr condition environ)
+                                  (loop condition body (interpret-stmt body environ return (lambda (env) (loop condition body env)) break))
+                                  environ))))
+                 (loop (operand1 stmt) (operand2 stmt) environ))))))
   
 (define interpret-block
   (lambda (stmt environ return continue break)
-    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return)))) ; pass in new continue and break that pop the current layer
+    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return (lambda (v) (continue (cdr v))) (lambda (v) (break (cdr v))))))) ; pass in new continue and break that pop the current layer
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
