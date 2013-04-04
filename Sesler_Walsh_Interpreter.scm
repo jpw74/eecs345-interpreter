@@ -13,14 +13,13 @@
 ; Takes a filename
 (define interpret
   (lambda (filename)
-    ;(lookup 'return (interpret-stmt-list (parser filename) (new-environ)))))
     (call/cc (lambda (return)
                (interpret-stmt-list (parser filename) (new-environ) return)))))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
 (define interpret-stmt-list
-  (lambda (stmt-list environ return)
+  (lambda (stmt-list environ return break)
     (cond
       ((null? stmt-list) '())
       ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)))
@@ -123,7 +122,8 @@
       ((eq? '= (operator expr)) (lookup (operand1 expr) (interpret-assign expr environ)))                  
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))))
 
-
+; Helper function to assist evaluate-expr
+; Applies the appropriate mathematical operator
 (define atom-to-func
   (lambda (atom)
     (cond
@@ -253,14 +253,14 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-(define box
-  (lambda (v)
-    (list v)))
+;(define box
+;  (lambda (v)
+ ;   (list v)))
 
-(define unbox
-  (lambda (b)
-    (car b)))
+;(define unbox
+;  (lambda (b)
+ ;   (car b)))
 
-(define set-box!
-  (lambda (b v)
-    (set-car! b v)))
+;(define set-box!
+;  (lambda (b v)
+ ;   (set-car! b v)))
