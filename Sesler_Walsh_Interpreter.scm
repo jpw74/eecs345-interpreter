@@ -14,16 +14,16 @@
 (define interpret
   (lambda (filename)
     (call/cc (lambda (return)
-               (interpret-stmt-list (parser filename) (new-environ) return)))))
+               (interpret-stmt-list (parser filename) (new-environ) return (lambda (v) v) (lambda (v) v))))))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
 (define interpret-stmt-list
-  (lambda (stmt-list environ return break)
+  (lambda (stmt-list environ return continue break)
     (cond
       ((null? stmt-list) '())
-      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)))
-      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return (lambda (v) v) (lambda (v) v)) return)))))
+      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return continue break))
+      (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return continue break) return continue break)))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
@@ -94,12 +94,12 @@
                (letrec ((loop (lambda (condition body environ)
                                 (if (evaluate-expr condition environ)
                                   (loop condition body (interpret-stmt body environ return (lambda (env) (loop condition body env)) break))
-                                  environ))))
+                                  (break environ)))))
                  (loop (operand1 stmt) (operand2 stmt) environ))))))
   
 (define interpret-block
   (lambda (stmt environ return continue break)
-    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return (lambda (v) (continue (cdr v))) (lambda (v) (break (cdr v))))))) ; pass in new continue and break that pop the current layer
+    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return continue (lambda (v) (break (cdr v))))))) ; pass in new continue and break that pop the current layer
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
@@ -253,14 +253,14 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-;(define box
-;  (lambda (v)
- ;   (list v)))
+(define box
+  (lambda (v)
+    (list v)))
 
-;(define unbox
-;  (lambda (b)
- ;   (car b)))
+(define unbox
+  (lambda (b)
+    (car b)))
 
-;(define set-box!
-;  (lambda (b v)
- ;   (set-car! b v)))
+(define set-box!
+  (lambda (b v)
+    (set-car! b v)))
