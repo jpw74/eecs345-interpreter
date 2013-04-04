@@ -1,7 +1,12 @@
 var x = 1;
-var total = 0;
-while (x <= 4) {
-    total = total + x;
-    x = x + 1;
+var y = x + 1;
+if (x < y) {
+  var z = 10;
+
+  if (x < z) {
+    var swap = y;
+    y = x;
+    x = swap;
+  }
 }
-return total;
+return x;

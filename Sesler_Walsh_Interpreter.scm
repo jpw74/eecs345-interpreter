@@ -46,7 +46,7 @@
                  ((eq? '= (operator stmt)) (interpret-assign stmt environ))
                  ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
                  ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
-                 ((eq? 'begin (operator stmt)) (interpret-block stmt environ return))
+                 ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
                  ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
                  ((eq? 'break (operator stmt)) (break environ))
                  ((eq? 'continue (operator stmt)) (continue environ)))))
@@ -107,8 +107,8 @@
                    environ)))))
   
 (define interpret-block
-  (lambda (stmt environ return)
-    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return))))
+  (lambda (stmt environ return continue break)
+    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return)))) ; pass in new continue and break that pop the current layer
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment

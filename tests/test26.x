@@ -1,5 +1,7 @@
-var x = 5;
+var x = 10;
 {
-    x = 7;
+  var y = 2;
+  var z = x * y;
+  x = z;
 }
 return x;

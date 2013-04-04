@@ -1,13 +1,9 @@
-var x = 0;
-var y = 0;
-var total = 0;
-
-while (x <= 2) {
-     	while (y <= 2) {
-		total = total + (y + x);
-		y = y + 1; 
-	}
-total = total + x;	
-x = x + 1;
+var x = 10;
+var y = 4;
+if (x < y) {
+  var min = x;
 }
-return total;
+else {
+  var min = y;
+}
+return min;

@@ -1,5 +1,4 @@
-var x = 5;
-{
-    var x = 7;
-}
+var x = 10;
+while (x < 100)
+  x = x + 1;
 return x;

@@ -1,11 +1,14 @@
-var x = 0;
-var total = 0;
-while (x <= 5) {
-    if (x == 4) {
-        x = x + 1;
-        continue;
-    }
-    total = total + x;
-    x = x + 1;
+var a = 31160;
+var b = 1476;
+if (a < b) {
+  var temp = a;
+  a = b;
+  b = temp;
 }
-return total;
+var r = a % b;
+while (r != 0) {
+  a = b;
+  b = r;
+  r = a % b;
+}
+return b;

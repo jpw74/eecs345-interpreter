@@ -1,11 +1,7 @@
-var x = 6;
-{
-    var x = 5;
-    var y = 7;
-    {
-        var z = 5;
-        y = 8;
-        x = 4;
-        return x + y + z;
-    }
+var x = 0;
+while (x < 6) {
+  x = x + 1;
+  continue;
+  x = x + 100;
 }
+return x;
