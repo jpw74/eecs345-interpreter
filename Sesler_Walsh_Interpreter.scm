@@ -101,7 +101,7 @@
 (define interpret-fundef
   (lambda (stmt environ)
     (let ((name (operand1 stmt)) (args (operand2 stmt)) (body (operand3 stmt)))
-      (add name ((lambda (a b e) (list a b e)) args body environ) environ))))
+      (add name (list args body environ) environ))))
 
 (define interpret-funcall
   (lambda (stmt environ return continue break)
@@ -122,7 +122,7 @@
   (lambda (actual formal environ)
     (cond
       ((and (null? actual) (null? formal)) environ)
-      (else (add (car formal) (evaluate-expr (car actual) environ) (bind-actual-formal (cdr actual) (cdr formal) environ))))))
+      (else (shallow-add (car formal) (evaluate-expr (car actual) environ) (bind-actual-formal (cdr actual) (cdr formal) environ))))))
 
 (define interpret-block
   (lambda (stmt environ return continue break)
