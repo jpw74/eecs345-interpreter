@@ -99,7 +99,7 @@
   
 (define interpret-block
   (lambda (stmt environ return continue break)
-    (cdr (interpret-stmt-list (cdr stmt) (cons (new-environ) environ) return continue (lambda (v) (break (cdr v))))))) ; pass in new continue and break that pop the current layer
+    (unlayer (interpret-stmt-list (cdr stmt) (layer environ) return (lambda (env) (continue (cdr env))) (lambda (env) (break (cdr env))))))) ; pass in new continue and break that pop the current layer
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
@@ -182,6 +182,14 @@
 (define new-environ
   (lambda ()
     '(()())))
+
+(define layer
+  (lambda (environ)
+    (cons (new-environ) environ)))
+
+(define unlayer
+  (lambda (environ)
+    (cdr environ)))
 
 ; Adds an element to the environment
 ; Takes a variable name, a value for that variable, and an environment
