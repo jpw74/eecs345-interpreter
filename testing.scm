@@ -43,3 +43,4 @@
 (runtest "tests/test36.x" 12)
 ;(runtest "tests/test37.x" 32) parser error for some reason
 (runtest "tests/test38.x" 5)
+(runtest "tests/test39.x" 7)

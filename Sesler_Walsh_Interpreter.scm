@@ -101,19 +101,21 @@
 (define interpret-fundef
   (lambda (stmt environ)
     (let ((name (operand1 stmt)) (args (operand2 stmt)) (body (operand3 stmt)))
-      (add name (list args body environ) environ))))
+      (add name ((lambda (a b e) (list a b e)) args body environ) environ))))
 
 (define interpret-funcall
   (lambda (stmt environ return continue break)
     (call/cc (lambda (funreturn)
-               (let* ((name (operand1 stmt)) 
-                      (closure (lookup name environ)) 
-                      (formal (closure-formal closure)) 
-                      (body (closure-body closure)) 
-                      (def-env (closure-environ closure)) 
-                      (actual (cdr (cdr stmt)))
-                      (call-env (bind-actual-formal actual formal (layer def-env))))
-                 (interpret-stmt-list body call-env funreturn continue break))))))
+               (if (eq? (lookup (operand1 stmt) environ) 'null)
+                 (error "Undefined function")
+                 (let* ((name (operand1 stmt)) 
+                        (closure (lookup name environ)) 
+                        (formal (closure-formal closure)) 
+                        (body (closure-body closure)) 
+                        (def-env (closure-environ closure)) 
+                        (actual (cdr (cdr stmt)))
+                        (call-env (bind-actual-formal actual formal (layer def-env))))
+                   (interpret-stmt-list body call-env funreturn continue break)))))))
 
 
 (define bind-actual-formal
