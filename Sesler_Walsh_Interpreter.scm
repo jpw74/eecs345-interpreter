@@ -13,7 +13,7 @@
 ; Takes a filename
 (define interpret
   (lambda (filename)
-    (interpret-funcall '(funcall silly 5) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
+    (interpret-funcall '(funcall main) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
@@ -145,7 +145,7 @@
       ((eq? '|| (operator expr)) (or (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))              ; Logical OR || 
       ((eq? '! (operator expr)) (not (evaluate-expr (operand1 expr) environ)))
       ((eq? '= (operator expr)) (lookup (operand1 expr) (interpret-assign expr environ)))                  
-      ((eq? 'funcall (operator expr)) (display "fuck me"))
+      ((eq? 'funcall (operator expr)) (interpret-funcall expr environ identity identity identity))
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))))
 
 ; Helper function to assist evaluate-expr
