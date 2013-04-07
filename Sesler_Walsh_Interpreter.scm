@@ -7,13 +7,13 @@
 ; statements, mathematical expressions, comparison operators, boolean operators, simple 
 ; if statements, and return statements.
 
-(load "loopSimpleParser.scm")
+(load "functionParser.scm")
 
 ; The main interpret function
 ; Takes a filename
 (define interpret
   (lambda (filename)
-    (call/cc (lambda (return)
+    (call-with-current-continuation (lambda (return)
                (interpret-stmt-list (parser filename) (new-environ) return (lambda (v) v) (lambda (v) v))))))
 
 ; Interprets a list of statements
@@ -37,6 +37,8 @@
                  ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
                  ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
                  ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
+                 ((eq? 'function (operator stmt)) (interpret-fundef stmt environ))
+                 ((eq? 'funcall (operator stmt)) (interpret-funcall stmt environ))
                  ((eq? 'break (operator stmt)) (break environ))
                  ((eq? 'continue (operator stmt)) (continue environ)))))
 
@@ -90,13 +92,33 @@
 ; Takes a statement, an environment, and a return
 (define interpret-while
   (lambda (stmt environ return)
-    (call/cc (lambda (break)
+    (call-with-current-continuation (lambda (break)
                (letrec ((loop (lambda (condition body environ)
                                 (if (evaluate-expr condition environ)
                                   (loop condition body (interpret-stmt body environ return (lambda (env) (loop condition body env)) break))
                                   (break environ)))))
                  (loop (operand1 stmt) (operand2 stmt) environ))))))
   
+(define interpret-fundef
+  (lambda (stmt environ)
+    (let ((name (operand1 stmt)) (args (operand2 stmt)) (body (operand3 stmt)))
+      (add name (list args body environ) environ))))
+
+(define interpret-funcall
+  (lambda (stmt environ)
+    (let* ((name (operand1 stmt)) (closure (lookup name)) (formal (closure-formal closure)) (body (closure-body closure)) (def-env (closure-environ closure)) (actual (cdr (cdr stmt))))
+      (begin
+        (display name)
+        (display "\n")
+        (display formal)
+        (display "\n")
+        (display body)
+        (display "\n")
+        (display def-env)
+        (display "\n")
+        (display actual)
+        (display "\n")))))
+      
 (define interpret-block
   (lambda (stmt environ return continue break)
     (unlayer (interpret-stmt-list (cdr stmt) (layer environ) return (lambda (env) (continue (cdr env))) (lambda (env) (break (cdr env))))))) ; pass in new continue and break that pop the current layer
@@ -138,15 +160,6 @@
       ((eq? '>= atom) >=) 
       ((eq? '== atom) equal?))))
 
-; Finds an assignment statement inside an expression if it exists
-; Takes a statement
-(define find-assignment
-  (lambda (stmt)
-    (cond
-      ((null? stmt) '())
-      ((and (list? (car stmt)) (eq? '= (operator (car stmt)))) (car stmt))
-      (else (find-assignment (cdr stmt))))))
-      
 ; Returns the operator of a statement
 ; Takes a statement
 (define operator
@@ -176,6 +189,18 @@
     (if (null? (cdr (cdr (cdr stmt))))
         '()
         (car (cdr (cdr (cdr stmt)))))))
+
+(define closure-formal
+  (lambda (closure)
+    (car closure)))
+
+(define closure-body
+  (lambda (closure)
+    (car (cdr closure))))
+
+(define closure-environ
+  (lambda (closure)
+    (car (cdr (cdr closure)))))
 
 ; Creates a new environment
 ; Takes no input
