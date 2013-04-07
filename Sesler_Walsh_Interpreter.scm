@@ -13,8 +13,7 @@
 ; Takes a filename
 (define interpret
   (lambda (filename)
-    (call-with-current-continuation (lambda (return)
-               (interpret-stmt-list (parser filename) (new-environ) return (lambda (v) v) (lambda (v) v))))))
+    (interpret-funcall '(funcall silly 5) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
@@ -38,7 +37,7 @@
                  ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
                  ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
                  ((eq? 'function (operator stmt)) (interpret-fundef stmt environ))
-                 ((eq? 'funcall (operator stmt)) (interpret-funcall stmt environ))
+                 ((eq? 'funcall (operator stmt)) (interpret-funcall stmt environ return continue break))
                  ((eq? 'break (operator stmt)) (break environ))
                  ((eq? 'continue (operator stmt)) (continue environ)))))
 
@@ -92,7 +91,7 @@
 ; Takes a statement, an environment, and a return
 (define interpret-while
   (lambda (stmt environ return)
-    (call-with-current-continuation (lambda (break)
+    (call/cc (lambda (break)
                (letrec ((loop (lambda (condition body environ)
                                 (if (evaluate-expr condition environ)
                                   (loop condition body (interpret-stmt body environ return (lambda (env) (loop condition body env)) break))
@@ -105,20 +104,24 @@
       (add name (list args body environ) environ))))
 
 (define interpret-funcall
-  (lambda (stmt environ)
-    (let* ((name (operand1 stmt)) (closure (lookup name)) (formal (closure-formal closure)) (body (closure-body closure)) (def-env (closure-environ closure)) (actual (cdr (cdr stmt))))
-      (begin
-        (display name)
-        (display "\n")
-        (display formal)
-        (display "\n")
-        (display body)
-        (display "\n")
-        (display def-env)
-        (display "\n")
-        (display actual)
-        (display "\n")))))
-      
+  (lambda (stmt environ return continue break)
+    (call/cc (lambda (funreturn)
+               (let* ((name (operand1 stmt)) 
+                      (closure (lookup name environ)) 
+                      (formal (closure-formal closure)) 
+                      (body (closure-body closure)) 
+                      (def-env (closure-environ closure)) 
+                      (actual (cdr (cdr stmt)))
+                      (call-env (bind-actual-formal actual formal (layer def-env))))
+                 (interpret-stmt-list body call-env funreturn continue break))))))
+
+
+(define bind-actual-formal
+  (lambda (actual formal environ)
+    (cond
+      ((and (null? actual) (null? formal)) environ)
+      (else (add (car formal) (evaluate-expr (car actual) environ) (bind-actual-formal (cdr actual) (cdr formal) environ))))))
+
 (define interpret-block
   (lambda (stmt environ return continue break)
     (unlayer (interpret-stmt-list (cdr stmt) (layer environ) return (lambda (env) (continue (cdr env))) (lambda (env) (break (cdr env))))))) ; pass in new continue and break that pop the current layer
@@ -142,6 +145,7 @@
       ((eq? '|| (operator expr)) (or (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ)))              ; Logical OR || 
       ((eq? '! (operator expr)) (not (evaluate-expr (operand1 expr) environ)))
       ((eq? '= (operator expr)) (lookup (operand1 expr) (interpret-assign expr environ)))                  
+      ((eq? 'funcall (operator expr)) (display "fuck me"))
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ) (evaluate-expr (operand2 expr) environ))))))
 
 ; Helper function to assist evaluate-expr
@@ -297,3 +301,7 @@
 (define set-box!
   (lambda (b v)
     (set-car! b v)))
+
+(define identity
+  (lambda (v)
+    v))
