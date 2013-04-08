@@ -100,19 +100,26 @@
   
 (define interpret-fundef
   (lambda (stmt environ)
-    (let ((name (operand1 stmt)) (args (operand2 stmt)) (body (operand3 stmt)))
-      (add name (list args body environ) environ))))
+    (let ((name (operand1 stmt)) (formal (operand2 stmt)) (body (operand3 stmt)))
+      (add name (list formal body (recursive-closure name formal body)) environ))))
+
+; formal body function
+
+(define recursive-closure
+  (lambda (name formal body)
+    (lambda (environ)
+      (add name (list formal body (recursive-closure name formal body)) environ))))
 
 (define interpret-funcall
   (lambda (stmt environ return continue break)
     (call/cc (lambda (funreturn)
                (if (eq? (lookup (operand1 stmt) environ) 'null)
                  (error "Undefined function")
-                 (let* ((name (operand1 stmt)) 
+                 (let* ((name (operand1 stmt))
                         (closure (lookup name environ)) 
                         (formal (closure-formal closure)) 
                         (body (closure-body closure)) 
-                        (def-env (closure-environ closure)) 
+                        (def-env ((closure-environ closure) environ))
                         (actual (cdr (cdr stmt)))
                         (call-env (bind-actual-formal actual formal (layer def-env))))
                    (interpret-stmt-list body call-env funreturn continue break)))))))
