@@ -103,8 +103,6 @@
     (let ((name (operand1 stmt)) (formal (operand2 stmt)) (body (operand3 stmt)))
       (add name (list formal body (recursive-closure name formal body)) environ))))
 
-; formal body function
-
 (define recursive-closure
   (lambda (name formal body)
     (lambda (environ)
@@ -123,7 +121,6 @@
                         (actual (cdr (cdr stmt)))
                         (call-env (bind-actual-formal actual formal (layer def-env))))
                    (interpret-stmt-list body call-env funreturn continue break)))))))
-
 
 (define bind-actual-formal
   (lambda (actual formal environ)
