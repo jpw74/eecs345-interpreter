@@ -1,3 +1,6 @@
 var z;
-z = 10;
-return z;
+main() {
+	z = 10;
+	return z;
+
+}

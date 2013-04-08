@@ -1,1 +1,3 @@
-return 150;
+main() {
+	return 150;
+}
