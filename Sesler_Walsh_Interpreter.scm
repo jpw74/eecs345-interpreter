@@ -122,7 +122,8 @@
   (lambda (actual formal environ)
     (cond
       ((and (null? actual) (null? formal)) environ)
-      (else (shallow-add (car formal) (evaluate-expr (car actual) environ) (bind-actual-formal (cdr actual) (cdr formal) environ))))))
+      ((eq? (car formal) '&) (add-box (car (cdr formal)) (get-box (car actual) environ) (bind-actual-formal (cdr actual) (cdr (cdr formal)) environ)))
+      (else (add (car formal) (evaluate-expr (car actual) environ) (bind-actual-formal (cdr actual) (cdr formal) environ))))))
 
 (define interpret-block
   (lambda (stmt environ return continue break)
@@ -222,16 +223,24 @@
   (lambda (environ)
     (cdr environ)))
 
+(define add-box
+  (lambda (name b environ)
+    (if (> (length environ) 2)
+      (cons (add-box name b (car environ)) (cdr environ))
+      (list (cons name (vars environ)) (cons b (vals environ))))))
+
 ; Adds an element to the environment
 ; Takes a variable name, a value for that variable, and an environment
 (define add
   (lambda (variable value environ)
     (let ((b (get-box variable environ)))
       (if (eq? 'null b)
-          (list (cons variable (vars environ)) (cons (box value) (vals environ)))
-          (begin
-            (set-box! b value) 
-            environ)))))
+        (if (> (length environ) 2)
+          (cons (add variable value (car environ)) (cdr environ))
+          (list (cons variable (vars environ)) (cons (box value) (vals environ))))
+        (begin
+          (set-box! b value) 
+          environ)))))
 
 (define shallow-add
   (lambda (variable value environ)
