@@ -1,7 +1,7 @@
 ; Timothy Sesler
 ; Jason Walsh
-; EECS 345 - Interpreter Project, Part III
-; 7 April 2013
+; EECS 345 - Interpreter Project, Part IV
+; 16 April 2013
 
 ; An interpreter for a simple Java-like language that handles variables, assignment 
 ;   statements, function declaration, function execution (call-by-value and call-by-reference), 
@@ -55,6 +55,31 @@
           (let ((new-env (interpret-assign (operand2 stmt) environ)))
             (shallow-add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
           (shallow-add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))))
+
+; Helper function used to create classes as they are defined
+(define interpret-class
+  (lambda (stmt environ)
+    ()))
+
+; Returns the class variable environment
+(define class-vars
+  (lambda (class)
+    (car class)))
+
+; Returns the instance variable environment
+(define class-instance-vars
+  (lambda (class)
+    (car (cdr class))))
+
+; Returns the method environment
+(define class-methods
+  (lambda (class)
+    (car (cddr class))))
+
+; Returns the parent class
+(define class-parent
+  (lambda (class)
+    (car (cdddr class))))
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
