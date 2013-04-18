@@ -14,8 +14,44 @@
 ; Takes a filename
 (define interpret
   (lambda (filename class)
-    (lookup-class class (interpret-class-list (parser filename)))))
+    (lookup-class class (interpret-class-list (parser filename) (new-environ)))))
     ;(interpret-funcall '(funcall main) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
+
+(define interpret-class-list
+  (lambda (class-list environ)
+    (cond
+      ((null? class-list) '())
+      ((null? (cdr class-list)) (interpret-class (car class-list) environ))
+      (else (interpret-class-list (cdr class-list) (interpret-class (car class-list) environ))))))
+
+; adds the given class to the environment
+(define interpret-class
+  (lambda (class environ)
+    (let* ((name (operand1 class))
+          (parent (if (null? (operand2 class)) 'null (cadr (operand2 class))))
+          (body (operand3 class))
+          (class-env (list (new-environ) (new-environ) (new-environ) parent)))
+      (begin
+        (display class-env) (newline)
+      (add name (interpret-class-body body class-env) environ)))))
+
+(define interpret-class-body
+  (lambda (body class-env)
+      (cond
+        ((null? body) '())
+        ((null? (cdr body)) (interpret-class-body-stmt (car body) class-env))
+        (else (interpret-class-body (cdr body) (interpret-class-body-stmt (car body) class-env))))))
+
+(define interpret-class-body-stmt
+  (lambda (body-stmt class-env)
+    (let ((static-env (class.static-env class-env))
+          (instance-env (class.instance-env class-env))
+          (method-env (class.method-env class-env))
+          (parent (class.parent class-env)))
+      (cond
+        ((eq? 'static-var (operator body-stmt)) (list (interpret-decl body-stmt static-env) instance-env method-env parent))
+        ((eq? 'static-function (operator body-stmt)) (list static-env instance-env (interpret-fundef body-stmt method-env) parent))))))
+
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
@@ -34,7 +70,6 @@
                  ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
                  ((eq? 'var (operator stmt)) (interpret-decl stmt environ))              
                  ((eq? '= (operator stmt)) (interpret-assign stmt environ))
-                 ((eq? 'class (operator stmt)) (interpret-class stmt environ))
                  ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
                  ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
                  ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
@@ -57,44 +92,6 @@
           (let ((new-env (interpret-assign (operand2 stmt) environ)))
             (shallow-add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
           (shallow-add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))))
-
-; Helper function used to create classes as they are defined
-(define interpret-class
-  (lambda (stmt environ)
-    (let ((name (operand1 stmt)) (parent (operand2 stmt)) (body (operand3 stmt)))
-      (add name (list (interpret-class-body-stmt body environ) parent) environ))))
-
-; Problem is in here somewhere
-; This function is returning void which can't be searched through in the top level interpret function
-(define interpret-class-list
-  (lambda (environ)
-    (cond
-      ((null? environ) '())
-      ((null? (cdr environ)) (interpret-class-body-stmt (car environ) identity))
-      (else (interpret-class-list (cdr environ) (interpret-class-body-stmt (car environ)))))))
-
-(define interpret-class-body-stmt
-  (lambda (stmt class)
-    (let* (
-          (environ (cons (new-environ) (cons (new-environ) (new-environ)))) 
-          (class-var-env (car environ)) 
-          (instance-var-env (cadr environ)) 
-          (method-env (caddr environ)))
-      (cond
-        ((eq? 'static-var (operator stmt)) (interpret-decl stmt class))
-        ((eq? 'static-function (operator stmt)) (fundef stmt class)))))) 
-
-(define class-var-env
-  (lambda (class)
-    (car class)))
-
-(define instance-var-env
-  (lambda (class)
-    (cadr class)))
-
-(define class-method-env
-  (lambda (class)
-    (caddr class)))
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
@@ -187,7 +184,7 @@
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
 (define evaluate-expr
-  (lambda (expr environ class instance)
+  (lambda (expr environ)
     (cond
       ((null? expr) environ)
       ((number? expr) expr)
@@ -267,6 +264,22 @@
   (lambda (closure)
     (car (cdr (cdr closure)))))
 
+(define class.static-env
+  (lambda (class)
+    (car class)))
+
+(define class.instance-env
+  (lambda (class)
+    (cadr class)))
+
+(define class.method-env
+  (lambda (class)
+    (caddr class)))
+
+(define class.parent
+  (lambda (class)
+    (cadddr class)))
+
 ; Creates a new environment
 ; Takes no input
 (define new-environ
@@ -313,24 +326,10 @@
       (cons (add variable value (car environ)) (cdr environ))
       (add variable value environ))))
 
-(define lookup-class
-  (lambda (class environ)
-    (cond
-      ((null? environ) '())
-      ((eq? class (car environ)) (car environ))
-      (else (lookup-class class (cdr environ))))))
-
-(define lookup-class-var
-  (lambda (var class instance)
-    (cond
-      ((eq? var (class-var-env class)) var)
-      ((eq? var (instance-var-env class)) var)
-      (else (lookup-class-var var (cdr (class-var-env class)) (cdr (instance-var-env class)))))))
-
 ; Finds a specified element in the environment and returns its bound value
 ; Takes a variable name and an environment
 (define lookup
-  (lambda (variable class instance environ)
+  (lambda (variable environ)
     (if (> (length environ) 2)
       (let ((val (lookup variable (car environ))))
         (if (eq? val 'null)
@@ -387,19 +386,19 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-;(define box
- ; (lambda (v)
-  ;  (list v)))
+(define box
+  (lambda (v)
+    (list v)))
 
-;(define unbox
- ; (lambda (b)
-  ;  (car b)))
+(define unbox
+  (lambda (b)
+    (car b)))
 
-;(define set-box!
- ; (lambda (b v)
-  ;  (set-car! b v)))
+(define set-box!
+  (lambda (b v)
+    (set-car! b v)))
 
 ; A dummy function to be placed as a generic parameter
-;(define identity
- ; (lambda (v)
-  ;  v))
+(define identity
+  (lambda (v)
+    v))
