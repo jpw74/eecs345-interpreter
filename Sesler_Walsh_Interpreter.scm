@@ -1,7 +1,7 @@
 ; Timothy Sesler
 ; Jason Walsh
 ; EECS 345 - Interpreter Project, Part IV
-; 16 April 2013
+; 17 April 2013
 
 ; An interpreter for a simple Java-like language that handles variables, assignment 
 ;   statements, function declaration, function execution (call-by-value and call-by-reference), 
@@ -13,8 +13,9 @@
 ; The main interpret function
 ; Takes a filename
 (define interpret
-  (lambda (filename)
-    (interpret-funcall '(funcall main) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
+  (lambda (filename class)
+    (lookup 'main class identity (interpret-class-list (parser filename)))))
+    ;(interpret-funcall '(funcall main) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
 
 ; Interprets a list of statements
 ; Takes a statement list and an environment
@@ -22,16 +23,16 @@
   (lambda (stmt-list environ return continue break)
     (cond
       ((null? stmt-list) '())
-      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return continue break))
+      ((null? (cdr stmt-list)) (interpret-stmt (car stmt-list) environ return continue break identity identity))
       (else (interpret-stmt-list (cdr stmt-list) (interpret-stmt (car stmt-list) environ return continue break) return continue break)))))
 
 ; Interprets a general statement and calls the appropriate function
 ; Takes a statement and an environment
 (define interpret-stmt
-  (lambda (stmt environ return continue break)
+  (lambda (stmt environ return continue break class instance)
                (cond
                  ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
-                 ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
+                 ((eq? 'var (operator stmt)) (interpret-decl stmt environ))              
                  ((eq? '= (operator stmt)) (interpret-assign stmt environ))
                  ((eq? 'class (operator stmt)) (interpret-class stmt environ))
                  ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
@@ -61,27 +62,37 @@
 (define interpret-class
   (lambda (stmt environ)
     (let ((name (operand1 stmt)) (parent (operand2 stmt)) (body (operand3 stmt)))
-      (add name (list parent (interpret-stmt-list body environ identity identity identity)) environ))))
+      (add name (list (interpret-class-body-stmt body environ) parent) environ))))
 
-; Returns the class's name
-(define class-name
+(define interpret-class-list
+  (lambda (environ)
+    (cond
+      ((null? environ) '())
+      ((null? (cdr environ)) (interpret-class-body-stmt (car environ) identity))
+      (else (interpret-class-list (cdr environ) (interpret-class-body-stmt (car environ)))))))
+
+(define interpret-class-body-stmt
+  (lambda (stmt class)
+    (let* (
+          (environ (cons (new-environ) (cons (new-environ) (new-environ)))) 
+          (class-var-env (car environ)) 
+          (instance-var-env (cadr environ)) 
+          (method-env (caddr environ)))
+      (cond
+        ((eq? 'static-var (operator stmt)) (interpret-decl stmt class))
+        ((eq? 'static-function (operator stmt)) (fundef stmt class)))))) 
+
+(define class-var-env
   (lambda (class)
     (car class)))
 
-; Returns the class's parent
-(define class-parent
+(define instance-var-env
   (lambda (class)
     (cadr class)))
 
-; Returns the method environment
-(define class-methods
+(define class-method-env
   (lambda (class)
-    (car (cddr class))))
-
-; Returns the parent class
-(define class-parent
-  (lambda (class)
-    (car (cdddr class))))
+    (caddr class)))
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
@@ -89,7 +100,7 @@
 ; For an assignment, we want to deeply add - reassigning within a block affects
 ;   containing blocks
 (define interpret-assign
-  (lambda (stmt environ)
+  (lambda (stmt environ class instance)
     (if (eq? 'null (lookup (operand1 stmt) environ)) (error "Using before declaring")
     (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
       (let ((new-env (interpret-assign (operand2 stmt) environ)))
@@ -99,7 +110,7 @@
 ; Interprets return statements
 ; Takes a statement and an environment
 (define interpret-return
-  (lambda (stmt environ return)
+  (lambda (stmt environ return class instance)
     (let ((ret-val (evaluate-expr (operand1 stmt) environ)))
       (cond
         ((eq? #t ret-val) (return 'true))
@@ -110,7 +121,7 @@
 ; Interprets if statements
 ; Takes a statement and an environment
 (define interpret-if
-  (lambda (stmt environ return continue break)
+  (lambda (stmt environ return continue break class instance)
     (if (evaluate-expr (operand1 stmt) environ)
         (interpret-stmt (operand2 stmt) environ return continue break)
         (interpret-stmt (operand3 stmt) environ return continue break))))
@@ -118,7 +129,7 @@
 ; Interprets while loops
 ; Takes a statement, an environment, and a return
 (define interpret-while
-  (lambda (stmt environ return)
+  (lambda (stmt environ return class instance)
     (call/cc (lambda (break)
                (letrec ((loop (lambda (condition body environ)
                                 (if (evaluate-expr condition environ)
@@ -131,7 +142,7 @@
 (define interpret-fundef
   (lambda (stmt environ)
     (let ((name (operand1 stmt)) (formal (operand2 stmt)) (body (operand3 stmt)))
-      (add name (list formal body (recursive-closure name formal body)) environ))))
+      (add name (append (list formal body (recursive-closure name formal body)) '(this)) environ))))
 
 ; Creates the closure of a function
 ; Takes the function name, formal arguments, and body
@@ -143,7 +154,7 @@
 ; Executes functions when they are called
 ; Takes a statement, an environment, return, continue, and break
 (define interpret-funcall
-  (lambda (stmt environ return continue break)
+  (lambda (stmt environ return continue break class instance)
     (call/cc (lambda (funreturn)
                (if (eq? (lookup (operand1 stmt) environ) 'null)
                  (error "Undefined function")
@@ -168,13 +179,13 @@
 ; Interprets blocks of code
 ; Takes a statement, environment, return, continue, and break
 (define interpret-block
-  (lambda (stmt environ return continue break)
+  (lambda (stmt environ return continue break class instance)
     (unlayer (interpret-stmt-list (cdr stmt) (layer environ) return (lambda (env) (continue (cdr env))) (lambda (env) (break (cdr env))))))) ; pass in new continue and break that pop the current layer
 
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
 (define evaluate-expr
-  (lambda (expr environ)
+  (lambda (expr environ class instance)
     (cond
       ((null? expr) environ)
       ((number? expr) expr)
@@ -269,7 +280,7 @@
 ; Pops the first layer off of the specified environment
 ; Takes an environment
 (define unlayer
-  (lambda (environ)
+  (lambda (environ class instance)
     (cdr environ)))
 
 ; Adds a box to the environment
@@ -300,10 +311,17 @@
       (cons (add variable value (car environ)) (cdr environ))
       (add variable value environ))))
 
+(define lookup-class-var
+  (lambda (var class instance)
+    (cond
+      ((eq? var (class-var-env class)) var)
+      ((eq? var (instance-var-env class)) var)
+      (else (lookup-class-var var (cdr (class-var-env class)) (cdr (instance-var-env class)))))))
+
 ; Finds a specified element in the environment and returns its bound value
 ; Takes a variable name and an environment
 (define lookup
-  (lambda (variable environ)
+  (lambda (variable class instance environ)
     (if (> (length environ) 2)
       (let ((val (lookup variable (car environ))))
         (if (eq? val 'null)
