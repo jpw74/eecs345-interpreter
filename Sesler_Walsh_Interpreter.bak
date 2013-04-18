@@ -1,11 +1,12 @@
 ; Timothy Sesler
 ; Jason Walsh
-; EECS 345 - Interpreter Project, Part II
-; 20 March 2013
+; EECS 345 - Interpreter Project, Part IV
+; 16 April 2013
 
 ; An interpreter for a simple Java-like language that handles variables, assignment 
-; statements, mathematical expressions, comparison operators, boolean operators, simple 
-; if statements, and return statements.
+;   statements, function declaration, function execution (call-by-value and call-by-reference), 
+;   mathematical expressions, comparison operators, boolean operators, while loops, simple if 
+;   statements, and return statements.
 
 (load "functionParser.scm")
 
@@ -55,6 +56,11 @@
             (shallow-add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
           (shallow-add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ))))))
 
+; Helper function used to create classes as they are defined
+(define interpret-class
+  (lambda (stmt environ)
+    (
+
 ; Interprets assignment statements
 ; Takes a statement and an environment
 ; Works for arbitrarily deep nested assignments (i.e. a = b = c = 5)
@@ -97,19 +103,23 @@
                                   (loop condition body (interpret-stmt body environ return (lambda (env) (loop condition body env)) break))
                                   (break environ)))))
                  (loop (operand1 stmt) (operand2 stmt) environ))))))
-  
+
+; Defines functions in the active environment
+; Takes a statement and an environment
 (define interpret-fundef
   (lambda (stmt environ)
     (let ((name (operand1 stmt)) (formal (operand2 stmt)) (body (operand3 stmt)))
       (add name (list formal body (recursive-closure name formal body)) environ))))
 
-; formal body function
-
+; Creates the closure of a function
+; Takes the function name, formal arguments, and body
 (define recursive-closure
   (lambda (name formal body)
     (lambda (environ)
       (add name (list formal body (recursive-closure name formal body)) environ))))
 
+; Executes functions when they are called
+; Takes a statement, an environment, return, continue, and break
 (define interpret-funcall
   (lambda (stmt environ return continue break)
     (call/cc (lambda (funreturn)
@@ -124,7 +134,8 @@
                         (call-env (bind-actual-formal actual formal (layer def-env))))
                    (interpret-stmt-list body call-env funreturn continue break)))))))
 
-
+; Binds the actual parameters of the function to the formal parameters used inside
+; Takes the actual parameters, formal parameters, and an environment
 (define bind-actual-formal
   (lambda (actual formal environ)
     (cond
@@ -132,6 +143,8 @@
       ((eq? (car formal) '&) (add-box (car (cdr formal)) (get-box (car actual) environ) (bind-actual-formal (cdr actual) (cdr (cdr formal)) environ)))
       (else (add (car formal) (evaluate-expr (car actual) environ) (bind-actual-formal (cdr actual) (cdr formal) environ))))))
 
+; Interprets blocks of code
+; Takes a statement, environment, return, continue, and break
 (define interpret-block
   (lambda (stmt environ return continue break)
     (unlayer (interpret-stmt-list (cdr stmt) (layer environ) return (lambda (env) (continue (cdr env))) (lambda (env) (break (cdr env))))))) ; pass in new continue and break that pop the current layer
@@ -204,14 +217,17 @@
         '()
         (car (cdr (cdr (cdr stmt)))))))
 
+; Returns the formal arguments of the function closure
 (define closure-formal
   (lambda (closure)
     (car closure)))
 
+; Returns the body of the function closure
 (define closure-body
   (lambda (closure)
     (car (cdr closure))))
 
+; Returns the environment of the function closure
 (define closure-environ
   (lambda (closure)
     (car (cdr (cdr closure)))))
@@ -222,14 +238,20 @@
   (lambda ()
     '(()())))
 
+; Adds a layer onto the specified environment
+; Takes an environment to add a layer on
 (define layer
   (lambda (environ)
     (cons (new-environ) environ)))
 
+; Pops the first layer off of the specified environment
+; Takes an environment
 (define unlayer
   (lambda (environ)
     (cdr environ)))
 
+; Adds a box to the environment
+; Takes a name, a box, and an envirnoment
 (define add-box
   (lambda (name b environ)
     (if (> (length environ) 2)
@@ -249,6 +271,7 @@
           (set-box! b value) 
           environ)))))
 
+; Adds an element to a 
 (define shallow-add
   (lambda (variable value environ)
     (if (> (length environ) 2)
@@ -269,7 +292,8 @@
         ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
         (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-; only lookup within the current block - needed to check against redeclaring
+; Checks for redeclaration of variables
+; Takes a variable and an environment
 (define shallow-lookup
   (lambda (variable environ)
     (if (> (length environ) 2)
@@ -279,14 +303,18 @@
         ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
         (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
+; Returns the car of the specified environment (the variable name)
 (define vars
   (lambda (environ)
     (car environ)))
 
+; Returns the car of the cdr of the specfied environment (the value bound to the variable)
 (define vals
   (lambda (environ)
     (car (cdr environ))))
 
+; Returns the box containing the specified variable
+; Takes a variable and an environment
 (define get-box
   (lambda (variable environ)
     (if (> (length environ) 2)
@@ -299,6 +327,8 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
+; Returns the box containing the specified variable
+; Takes a variable and an environment
 (define shallow-get-box
   (lambda (variable environ)
     (if (> (length environ) 2)
@@ -308,18 +338,19 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-(define box
-  (lambda (v)
-    (list v)))
+;(define box
+ ; (lambda (v)
+  ;  (list v)))
 
-(define unbox
-  (lambda (b)
-    (car b)))
+;(define unbox
+ ; (lambda (b)
+  ;  (car b)))
 
-(define set-box!
-  (lambda (b v)
-    (set-car! b v)))
+;(define set-box!
+ ; (lambda (b v)
+  ;  (set-car! b v)))
 
-(define identity
-  (lambda (v)
-    v))
+; A dummy function to be placed as a generic parameter
+;(define identity
+ ; (lambda (v)
+  ;  v))

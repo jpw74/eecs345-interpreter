@@ -41,10 +41,6 @@
 ; test32, 33, 34 should error
 (runtest "tests/test35.x" 21)
 (runtest "tests/test36.x" 12)
-(runtest "tests/test37.x" 32) ;parser error for some reason
+;(runtest "tests/test37.x" 32) parser error for some reason
 (runtest "tests/test38.x" 5)
 (runtest "tests/test39.x" 7)
-(runtest "tests/test40.x" 720)
-(runtest "tests/test41.x" 5)
-(runtest "tests/test42.x" 1)
-(runtest "tests/test43.x" 12)
