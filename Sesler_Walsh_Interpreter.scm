@@ -8,7 +8,7 @@
 ;   mathematical expressions, comparison operators, boolean operators, while loops, simple if 
 ;   statements, and return statements.
 
-(load "functionParser.scm")
+(load "classParser.scm")
 
 ; The main interpret function
 ; Takes a filename
@@ -33,6 +33,7 @@
                  ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
                  ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
                  ((eq? '= (operator stmt)) (interpret-assign stmt environ))
+                 ((eq? 'class (operator stmt)) (interpret-class stmt environ))
                  ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
                  ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
                  ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
@@ -59,17 +60,18 @@
 ; Helper function used to create classes as they are defined
 (define interpret-class
   (lambda (stmt environ)
-    ()))
+    (let ((name (operand1 stmt)) (parent (operand2 stmt)) (body (operand3 stmt)))
+      (add name (list parent (interpret-stmt-list body environ identity identity identity)) environ))))
 
-; Returns the class variable environment
-(define class-vars
+; Returns the class's name
+(define class-name
   (lambda (class)
     (car class)))
 
-; Returns the instance variable environment
-(define class-instance-vars
+; Returns the class's parent
+(define class-parent
   (lambda (class)
-    (car (cdr class))))
+    (cadr class)))
 
 ; Returns the method environment
 (define class-methods
