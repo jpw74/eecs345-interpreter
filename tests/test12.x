@@ -1,3 +1,5 @@
-var y;
-y = x;
-return y;
+main() {
+	var y;
+	y = x;
+	return y;
+}
