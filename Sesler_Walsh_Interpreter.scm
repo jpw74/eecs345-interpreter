@@ -14,7 +14,7 @@
 ; Takes a filename
 (define interpret
   (lambda (filename class)
-    (lookup 'main class identity (interpret-class-list (parser filename)))))
+    (lookup-class class (interpret-class-list (parser filename)))))
     ;(interpret-funcall '(funcall main) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
 
 ; Interprets a list of statements
@@ -64,6 +64,8 @@
     (let ((name (operand1 stmt)) (parent (operand2 stmt)) (body (operand3 stmt)))
       (add name (list (interpret-class-body-stmt body environ) parent) environ))))
 
+; Problem is in here somewhere
+; This function is returning void which can't be searched through in the top level interpret function
 (define interpret-class-list
   (lambda (environ)
     (cond
@@ -310,6 +312,13 @@
     (if (> (length environ) 2)
       (cons (add variable value (car environ)) (cdr environ))
       (add variable value environ))))
+
+(define lookup-class
+  (lambda (class environ)
+    (cond
+      ((null? environ) '())
+      ((eq? class (car environ)) (car environ))
+      (else (lookup-class class (cdr environ))))))
 
 (define lookup-class-var
   (lambda (var class instance)
