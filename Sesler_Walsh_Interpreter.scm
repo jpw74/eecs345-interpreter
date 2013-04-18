@@ -14,7 +14,7 @@
 ; Takes a filename
 (define interpret
   (lambda (filename class)
-    (lookup-class class (interpret-class-list (parser filename) (new-environ)))))
+    (interpret-funcall `(funcall (dot (unquote (string->symbol class)) main)) (interpret-class-list (parser filename) (new-environ)) identity identity identity (string->symbol class) identity)))
     ;(interpret-funcall '(funcall main) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
 
 (define interpret-class-list
@@ -31,9 +31,7 @@
           (parent (if (null? (operand2 class)) 'null (cadr (operand2 class))))
           (body (operand3 class))
           (class-env (list (new-environ) (new-environ) (new-environ) parent)))
-      (begin
-        (display class-env) (newline)
-      (add name (interpret-class-body body class-env) environ)))))
+      (add name (interpret-class-body body class-env) environ))))
 
 (define interpret-class-body
   (lambda (body class-env)
@@ -66,18 +64,19 @@
 ; Takes a statement and an environment
 (define interpret-stmt
   (lambda (stmt environ return continue break class instance)
-               (cond
-                 ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
-                 ((eq? 'var (operator stmt)) (interpret-decl stmt environ))              
-                 ((eq? '= (operator stmt)) (interpret-assign stmt environ))
-                 ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
-                 ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
-                 ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
-                 ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
-                 ((eq? 'function (operator stmt)) (interpret-fundef stmt environ))
-                 ((eq? 'funcall (operator stmt)) (interpret-funcall stmt environ return continue break))
-                 ((eq? 'break (operator stmt)) (break environ))
-                 ((eq? 'continue (operator stmt)) (continue environ)))))
+    (cond
+      ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
+      ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
+      ((eq? '= (operator stmt)) (interpret-assign stmt environ))
+      ((eq? 'return (operator stmt)) (interpret-return stmt environ return))
+      ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
+      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
+      ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
+      ((eq? 'function (operator stmt)) (interpret-fundef stmt environ))
+      ((eq? 'funcall (operator stmt)) (interpret-funcall stmt environ return continue break))
+      ((eq? 'dot (operator stmt)) (interpret-dot stmt class instance))
+      ((eq? 'break (operator stmt)) (break environ))
+      ((eq? 'continue (operator stmt)) (continue environ)))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
@@ -155,16 +154,24 @@
 (define interpret-funcall
   (lambda (stmt environ return continue break class instance)
     (call/cc (lambda (funreturn)
-               (if (eq? (lookup (operand1 stmt) environ) 'null)
-                 (error "Undefined function")
-                 (let* ((name (operand1 stmt))
-                        (closure (lookup name environ)) 
+               ;(if (eq? (lookup (operand1 stmt) environ) 'null)
+                 ;(error "Undefined function")
+                 (let* ((name (if (eq? (operator (operand1 stmt)) 'dot)
+                                (operand2 (operand1 stmt))
+                                (operand1 stmt)))
+                        (closure (cls-lookup name class environ)) 
                         (formal (closure-formal closure)) 
                         (body (closure-body closure)) 
                         (def-env ((closure-environ closure) environ))
                         (actual (cdr (cdr stmt)))
                         (call-env (bind-actual-formal actual formal (layer def-env))))
-                   (interpret-stmt-list body call-env funreturn continue break)))))))
+                   (interpret-stmt-list body call-env funreturn continue break))))))
+
+(define interpret-dot
+  (lambda (stmt environ)
+    (let ((class (operand1 stmt))
+          (name (operand2 stmt)))
+      (cls-lookup name class environ))))
 
 ; Binds the actual parameters of the function to the formal parameters used inside
 ; Takes the actual parameters, formal parameters, and an environment
@@ -339,6 +346,18 @@
         ((and (null? (vars environ)) (null? (vals environ))) 'null)
         ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
         (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+
+(define cls-lookup
+  (lambda (name class environ)
+    (let* ((class-env (lookup class environ))
+           (static-var (lookup name (class.static-env class-env)))
+           (method (lookup name (class.method-env class-env)))
+           (parent (class.parent class-env)))
+      (if (eq? static-var 'null)
+        (if (eq? method 'null)
+          (cls-lookup name parent environ)
+          method)
+        static-var))))
 
 ; Checks for redeclaration of variables
 ; Takes a variable and an environment
