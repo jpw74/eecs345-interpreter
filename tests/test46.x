@@ -1,5 +1,5 @@
 class A {
 	static main() {
-		return 5;
+		return 5 + 6;
 	}
 }
