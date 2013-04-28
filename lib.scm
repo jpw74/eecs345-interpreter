@@ -28,25 +28,25 @@
 ; Takes a statement
 (define operand1
   (lambda (stmt)
-        (if (null? (cdr stmt))
-            '()
-        (car (cdr stmt)))))
+    (if (null? (cdr stmt))
+      '()
+      (car (cdr stmt)))))
 
 ; Returns the second operand of a statement
 ; Takes a statement
 (define operand2
   (lambda (stmt)
-        (if (null? (cdr (cdr stmt)))
-            '()
-            (car (cdr (cdr stmt))))))
+    (if (null? (cdr (cdr stmt)))
+      '()
+      (car (cdr (cdr stmt))))))
 
 ; Returns the third operand of a statement
 ; Takes a statement
 (define operand3
   (lambda (stmt)
     (if (null? (cdr (cdr (cdr stmt))))
-        '()
-        (car (cdr (cdr (cdr stmt)))))))
+      '()
+      (car (cdr (cdr (cdr stmt)))))))
 
 ; Returns the formal arguments of the function closure
 (define closure.formal

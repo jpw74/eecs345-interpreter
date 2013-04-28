@@ -17,7 +17,6 @@
 (define interpret
   (lambda (filename class)
     (interpret-funcall '(funcall main) (interpret-class-list (parser filename) (new-environ)) identity identity identity (string->symbol class) identity)))
-    ;(interpret-funcall '(funcall main) (interpret-stmt-list (parser filename) (new-environ) identity identity identity) identity identity identity)))
 
 (define interpret-class-list
   (lambda (class-list environ)
@@ -178,12 +177,6 @@
                         (call-env (bind-actual-formal actual formal (layer def-env) class instance)))
                    (interpret-stmt-list body call-env funreturn continue break class instance)))))))
 
-;(define interpret-dot
- ; (lambda (stmt environ)
-  ;  (let ((class (operand1 stmt))
-   ;       (name (operand2 stmt)))
-    ;  (interpret-funcall name environ return continue break class instance))))
-
 ; Binds the actual parameters of the function to the formal parameters used inside
 ; Takes the actual parameters, formal parameters, and an environment
 (define bind-actual-formal
@@ -199,6 +192,14 @@
   (lambda (stmt environ return continue break class instance)
     (unlayer (interpret-stmt-list (cdr stmt) (layer environ) return (lambda (env) (continue (cdr env))) (lambda (env) (break (cdr env))) class instance)))) ; pass in new continue and break that pop the current layer
 
+(define interpret-dot
+  (lambda (stmt environ class instance)
+    (if (eq? (operand1 stmt) 'super)
+      (let* ((class-env (lookup class class instance environ))
+             (parent (class.parent class-env)))
+        (lookup-in-class (operand2 stmt) parent instance environ))
+      (lookup-in-class (operand2 stmt) class instance environ))))
+      
 ; Evaluates expressions and handles all mathematical operators in order of precedence
 ; Takes an expression and an environment
 (define evaluate-expr
@@ -217,7 +218,7 @@
       ((eq? '&& (operator expr)) (and (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance)))             ; Logical AND &&
       ((eq? '|| (operator expr)) (or (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance)))              ; Logical OR || 
       ((eq? '! (operator expr)) (not (evaluate-expr (operand1 expr) environ class instance)))
-      ((eq? 'dot (operator expr)) (lookup-in-class (operand2 expr) (operand1 expr) instance  environ))
+      ((eq? 'dot (operator expr)) (interpret-dot expr environ class instance))
       ((eq? '= (operator expr)) (lookup (operand1 expr) class instance (interpret-assign expr environ)))                  
       ((eq? 'funcall (operator expr)) (interpret-funcall expr environ identity identity identity class instance))
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance))))))
