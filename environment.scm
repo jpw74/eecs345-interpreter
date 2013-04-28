@@ -72,10 +72,9 @@
 
 (define lookup
   (lambda (name class instance environ)
-    (let ((from-class (lookup-in-class name class instance environ)))
-      (if (eq? from-class 'null)
-        (lookup-main name environ)
-        from-class))))
+    (if (eq? (lookup-main name environ) 'null)
+      (lookup-in-class name class instance environ)
+      (lookup-main name environ))))
 
 ; Checks for redeclaration of variables
 ; Takes a variable and an environment

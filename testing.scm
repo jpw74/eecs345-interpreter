@@ -2,8 +2,7 @@
 
 (define runtest
   (lambda (file class result)
-    (display file)
-    (display ": ")
+    (display file) (display " ") (display class) (display ": ")
     (if (eq? (interpret file class) result)
       (display "Passed")
       (display "Failed"))
