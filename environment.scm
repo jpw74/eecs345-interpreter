@@ -58,15 +58,15 @@
         ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
         (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-(define cls-lookup
-  (lambda (name class environ)
+(define lookup-in-class 
+  (lambda (name class instance environ)
     (let* ((class-env (lookup class environ))
            (static-var (lookup name (class.static-env class-env)))
            (method (lookup name (class.method-env class-env)))
            (parent (class.parent class-env)))
       (if (eq? static-var 'null)
         (if (eq? method 'null)
-          (cls-lookup name parent environ)
+          (lookup-in-class name parent instance environ)
           method)
         static-var))))
 
@@ -100,17 +100,6 @@
         (if (eq? b 'null)
           (get-box variable (cdr environ))
           b))
-      (cond
-        ((and (null? (vars environ)) (null? (vals environ))) 'null)
-        ((eq? variable (car (vars environ))) (car (vals environ)))
-        (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
-
-; Returns the box containing the specified variable
-; Takes a variable and an environment
-(define shallow-get-box
-  (lambda (variable environ)
-    (if (> (length environ) 2)
-      (get-box variable (car environ))
       (cond
         ((and (null? (vars environ)) (null? (vals environ))) 'null)
         ((eq? variable (car (vars environ))) (car (vals environ)))
