@@ -44,25 +44,25 @@
       (cons (add variable value (car environ)) (cdr environ))
       (add variable value environ))))
 
-; Finds a specified element in the environment and returns its bound value
-; Takes a variable name and an environment
-(define lookup
+; takes a name and an environment and returns a value
+; environment should be structured as a list of variables and a list of values
+(define lookup-main
   (lambda (variable environ)
     (if (> (length environ) 2)
-      (let ((val (lookup variable (car environ))))
+      (let ((val (lookup-main variable (car environ))))
         (if (eq? val 'null)
-          (lookup variable (cdr environ))
+          (lookup-main variable (cdr environ))
           val))
       (cond
         ((and (null? (vars environ)) (null? (vals environ))) 'null)
         ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
-        (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+        (else (lookup-main variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
 (define lookup-in-class 
   (lambda (name class instance environ)
-    (let* ((class-env (lookup class environ))
-           (static-var (lookup name (class.static-env class-env)))
-           (method (lookup name (class.method-env class-env)))
+    (let* ((class-env (lookup-main class environ))
+           (static-var (lookup-main name (class.static-env class-env)))
+           (method (lookup-main name (class.method-env class-env)))
            (parent (class.parent class-env)))
       (if (eq? static-var 'null)
         (if (eq? method 'null)
@@ -70,16 +70,23 @@
           method)
         static-var))))
 
+(define lookup
+  (lambda (name class instance environ)
+    (let ((from-class (lookup-in-class name class instance environ)))
+      (if (eq? from-class 'null)
+        (lookup-main name environ)
+        from-class))))
+
 ; Checks for redeclaration of variables
 ; Takes a variable and an environment
 (define shallow-lookup
   (lambda (variable environ)
     (if (> (length environ) 2)
-      (lookup variable (car environ))
+      (lookup-main variable (car environ))
       (cond
         ((and (null? (vars environ)) (null? (vals environ))) 'null)
         ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
-        (else (lookup variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+        (else (lookup-main variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
 ; Returns the car of the specified environment (the variable name)
 (define vars

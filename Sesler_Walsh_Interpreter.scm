@@ -92,7 +92,7 @@
         (shallow-add (operand1 stmt) '() environ)
         (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
           (let ((new-env (interpret-assign (operand2 stmt) environ class instance)))
-            (shallow-add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
+            (shallow-add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) name class instance new-env))
           (shallow-add (operand1 stmt) (evaluate-expr (operand2 stmt) environ class instance) environ))))))
 
 ; Interprets assignment statements
@@ -102,10 +102,10 @@
 ;   containing blocks
 (define interpret-assign
   (lambda (stmt environ class instance)
-    (if (eq? 'null (lookup (operand1 stmt) environ)) (error "Using before declaring")
+    (if (eq? 'null (lookup (operand1 stmt) class instance environ)) (error "Using before declaring")
     (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
       (let ((new-env (interpret-assign (operand2 stmt) environ)))
-        (add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) new-env))
+        (add (operand1 stmt) (lookup (operand1 (operand2 stmt)) class instance new-env) new-env))
       (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ)))))
 
 ; Interprets return statements
@@ -157,8 +157,18 @@
 (define interpret-funcall
   (lambda (stmt environ return continue break class instance)
     (call/cc (lambda (funreturn)               
-               (if (eq? (lookup-in-class (operand1 stmt) class instance environ) 'null)
-                 (error "Undefined function")              
+               (if (list? (operand1 stmt))
+                 (let* ((name (operand2 (operand1 stmt)))
+                        ; TODO this sucks and probably won't work
+                        (closure (lookup-in-class name (operand1 (operand1 stmt)) instance environ))
+                        (formal (closure.formal closure))
+                        (body (closure.body closure))
+                        (def-env ((closure.environ closure) environ))
+                        (actual (cdr (cdr stmt)))
+                        (call-env (bind-actual-formal actual formal (layer def-env) class instance)))
+                   (interpret-stmt-list body call-env funreturn continue break class instance))
+               ;(if (eq? (lookup-in-class (operand1 stmt) class instance environ) 'null)
+                 ;(error "Undefined function")              
                  (let* ((name (operand1 stmt))
                         (closure (lookup-in-class name class instance environ)) 
                         (formal (closure.formal closure))
@@ -199,15 +209,15 @@
       ((eq? 'true expr) #t)
       ((eq? 'false expr) #f)
       ((not (list? expr)) (cond
-                            ((eq? 'null (lookup-in-class expr class instance environ)) (error "Using before declaring"))
-                            ((eq? '() (lookup-in-class expr class instance environ)) (error "Using before assigning"))
-                            (else (lookup-in-class expr class instance environ))))
+                            ((eq? 'null (lookup expr class instance environ)) (error "Using before declaring"))
+                            ((eq? '() (lookup expr class instance environ)) (error "Using before assigning"))
+                            (else (lookup expr class instance environ))))
       ((and (eq? '- (operator expr)) (null? (operand2 expr))) (evaluate-expr (* -1 (evaluate-expr (operand1 expr) environ class instance)) environ class instance))      ; Unary Minus -
       ((eq? '!= (operator expr)) (not (equal? (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance))))    ; Not equal !=
       ((eq? '&& (operator expr)) (and (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance)))             ; Logical AND &&
       ((eq? '|| (operator expr)) (or (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance)))              ; Logical OR || 
       ((eq? '! (operator expr)) (not (evaluate-expr (operand1 expr) environ class instance)))
       ((eq? 'dot (operator expr)) (lookup-in-class (operand2 expr) (operand1 expr) instance  environ))
-      ((eq? '= (operator expr)) (lookup (operand1 expr) (interpret-assign expr environ)))                  
+      ((eq? '= (operator expr)) (lookup (operand1 expr) class instance (interpret-assign expr environ)))                  
       ((eq? 'funcall (operator expr)) (interpret-funcall expr environ identity identity identity class instance))
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance))))))
