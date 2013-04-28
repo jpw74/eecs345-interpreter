@@ -67,16 +67,14 @@
   (lambda (stmt environ return continue break class instance)
     (cond
       ((null? stmt) environ) ; hack for now, not sure why/where interpret-stmt is getting called with ()
-      ((eq? 'var (operator stmt)) (interpret-decl stmt environ))
-      ((eq? '= (operator stmt)) (interpret-assign stmt environ))
+      ((eq? 'var (operator stmt)) (interpret-decl stmt environ class instance))
+      ((eq? '= (operator stmt)) (interpret-assign stmt environ class instance))
       ((eq? 'return (operator stmt)) (interpret-return stmt environ return class instance))
-      ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break))
-      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break))
-      ((eq? 'while (operator stmt)) (interpret-while stmt environ return))
-      ((eq? 'function (operator stmt)) (interpret-fundef stmt environ))
+      ((eq? 'if (operator stmt)) (interpret-if stmt environ return continue break class instance))
+      ((eq? 'begin (operator stmt)) (interpret-block stmt environ return continue break class instance))
+      ((eq? 'while (operator stmt)) (interpret-while stmt environ return class instance))
+      ((eq? 'function (operator stmt)) (interpret-fundef stmt environ class instance))
       ((eq? 'funcall (operator stmt)) (interpret-funcall stmt environ return continue break class instance))
-      ((eq? 'super (operator stmt)) (class.parent class))
-      ;((eq? 'dot (operator stmt)) (interpret-dot stmt class instance))      
       ((eq? 'break (operator stmt)) (break environ))
       ((eq? 'continue (operator stmt)) (continue environ)))))
 
@@ -105,7 +103,7 @@
     (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
       (let ((new-env (interpret-assign (operand2 stmt) environ)))
         (add (operand1 stmt) (lookup (operand1 (operand2 stmt)) class instance new-env) new-env))
-      (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ) environ)))))
+      (add (operand1 stmt) (evaluate-expr (operand2 stmt) environ class instance) environ)))))
 
 ; Interprets return statements
 ; Takes a statement and an environment
@@ -122,9 +120,9 @@
 ; Takes a statement and an environment
 (define interpret-if
   (lambda (stmt environ return continue break class instance)
-    (if (evaluate-expr (operand1 stmt) environ)
-        (interpret-stmt (operand2 stmt) environ return continue break)
-        (interpret-stmt (operand3 stmt) environ return continue break))))
+    (if (evaluate-expr (operand1 stmt) environ class instance)
+        (interpret-stmt (operand2 stmt) environ return continue break class instance)
+        (interpret-stmt (operand3 stmt) environ return continue break class instance))))
 
 ; Interprets while loops
 ; Takes a statement, an environment, and a return
@@ -132,8 +130,8 @@
   (lambda (stmt environ return class instance)
     (call/cc (lambda (break)
                (letrec ((loop (lambda (condition body environ)
-                                (if (evaluate-expr condition environ)
-                                  (loop condition body (interpret-stmt body environ return (lambda (env) (loop condition body env)) break))
+                                (if (evaluate-expr condition environ class instance)
+                                  (loop condition body (interpret-stmt body environ return (lambda (env) (loop condition body env)) break class instance))
                                   (break environ)))))
                  (loop (operand1 stmt) (operand2 stmt) environ))))))
 
@@ -159,7 +157,7 @@
                (if (list? (operand1 stmt))
                  (let* ((name (operand2 (operand1 stmt)))
                         ; TODO this sucks and probably won't work
-                        (closure (lookup-in-class name (operand1 (operand1 stmt)) instance environ))
+                        (closure (interpret-dot (operand1 stmt) environ class instance))
                         (formal (closure.formal closure))
                         (body (closure.body closure))
                         (def-env ((closure.environ closure) environ))

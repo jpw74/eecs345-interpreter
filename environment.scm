@@ -13,7 +13,7 @@
 ; Pops the first layer off of the specified environment
 ; Takes an environment
 (define unlayer
-  (lambda (environ class instance)
+  (lambda (environ)
     (cdr environ)))
 
 ; Adds a box to the environment

@@ -24,4 +24,4 @@
 (runtest "tests/test9.x" "C" 4321)
 (runtest "tests/test10.x" "Square" 400)
 (runtest "tests/test11.x" "A" 530)
-(runtest "tests/test12/x" "B" 66)
+(runtest "tests/test12.x" "B" 66)
