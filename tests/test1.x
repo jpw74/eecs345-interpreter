@@ -1,3 +1,5 @@
-main() {
-	return 150;
+class A {
+  static main() {
+    return 10;
+  }
 }

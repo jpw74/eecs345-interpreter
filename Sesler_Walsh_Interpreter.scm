@@ -411,19 +411,19 @@
         ((eq? variable (car (vars environ))) (car (vals environ)))
         (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
-;(define box
- ; (lambda (v)
-  ;  (list v)))
+(define box
+  (lambda (v)
+    (list v)))
 
-;(define unbox
- ; (lambda (b)
-  ;  (car b)))
+(define unbox
+  (lambda (b)
+    (car b)))
 
-;(define set-box!
- ; (lambda (b v)
-  ;  (set-car! b v)))
+(define set-box!
+  (lambda (b v)
+    (set-car! b v)))
 
 ; A dummy function to be placed as a generic parameter
-;(define identity
- ; (lambda (v)
-  ;  v))
+(define identity
+  (lambda (v)
+    v))

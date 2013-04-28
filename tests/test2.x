@@ -1,3 +1,6 @@
-main() {
-	return 6 * (8 + (5 % 3)) / 11 - 9;
+class A {
+  static var x = 20;
+  static main() {
+    return x;
+  }
 }

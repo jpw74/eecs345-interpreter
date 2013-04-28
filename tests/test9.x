@@ -1,7 +1,20 @@
-main() {
-	var x = 5;
-	var y = 6;
-	if (x == y)
-	  x = 10;
-	return x;
+class A {
+  static var a = 1;
+  static var b = 20;
+}
+
+class B extends A {
+  static var c = 300;
+
+  static main() {
+    return a + b + c + d;
+  }
+}
+
+class C extends B {
+  static var d = 4000;
+
+  static main() {
+    return a + b + c + d;
+  }
 }

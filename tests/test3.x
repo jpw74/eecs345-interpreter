@@ -1,6 +1,7 @@
-var z;
-main() {
-	z = 10;
-	return z;
 
+class A {
+  static var x = 30;
+  static main() {
+    return A.x;
+  }
 }
