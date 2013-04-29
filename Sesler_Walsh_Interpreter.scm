@@ -192,10 +192,15 @@
 
 (define interpret-dot
   (lambda (stmt environ class instance)
+    ;(begin (display "stmt: ") (display stmt) (newline)
+     ;      (display "environ: ") (display environ) (newline)
+      ;     (display "class: ") (display class) (newline)
+       ;    (display "instance: ") (display instance) (newline)
     (if (eq? (operand1 stmt) 'super)
       (let* ((class-env (lookup class class instance environ))
              (parent (class.parent class-env)))
-        (lookup-in-class (operand2 stmt) parent instance environ))
+        ;(begin (display "parent: ") (display parent) (newline) 
+               (lookup-in-class (operand2 stmt) parent instance environ))
       (lookup-in-class (operand2 stmt) class instance environ))))
       
 ; Evaluates expressions and handles all mathematical operators in order of precedence
