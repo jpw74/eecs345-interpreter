@@ -16,23 +16,27 @@
 ; Takes a filename
 (define interpret
   (lambda (filename class)
-    (interpret-funcall '(funcall main) (interpret-class-list (parser filename) (new-environ)) identity identity identity (string->symbol class) identity)))
+    (interpret-funcall '(funcall main) (interpret-class-list (parser filename) (new-environ) (lambda (v) v)) identity identity identity (string->symbol class) identity)))
 
 (define interpret-class-list
-  (lambda (class-list environ)
+  (lambda (class-list environ k)
     (cond
-      ((null? class-list) '())
-      ((null? (cdr class-list)) (interpret-class (car class-list) environ))
-      (else (interpret-class-list (cdr class-list) (interpret-class (car class-list) environ))))))
+      ((null? class-list) (k environ))
+      ((null? (cdr class-list)) (k (interpret-class (car class-list) environ)))
+      ((list? (car class-list)) (interpret-class-list (car class-list) environ (lambda (env) (interpret-class-list (cdr class-list) env (lambda (v) v)))))
+      (else (k (interpret-class class-list environ))))))
+      ;(else (interpret-class-list (cdr class-list) (interpret-class (car class-list) environ))))))
 
 ; adds the given class to the environment
 (define interpret-class
   (lambda (class environ)
+    (begin (display "class: ") (display class) (newline)
+           (display "environ: ") (display environ) (newline)
     (let* ((name (operand1 class))
           (parent (if (null? (operand2 class)) 'null (cadr (operand2 class))))
           (body (operand3 class))
           (class-env (class-def (new-environ) (new-environ) (new-environ) parent)))
-      (add name (interpret-class-body body class-env) environ))))
+      (add name (interpret-class-body body class-env) environ)))))
 
 (define interpret-class-body
   (lambda (body class-env)
