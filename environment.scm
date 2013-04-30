@@ -59,11 +59,10 @@
         (else (lookup-main variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
 
 (define lookup-in-class 
-  (lambda (name class-name instance environ)
-    (let* ((class-env (lookup-main class-name environ))
-           (static-var (lookup-main name (class.static-env class-env)))
-           (method (lookup-main name (class.method-env class-env)))
-           (parent (class.parent class-env)))
+  (lambda (name class instance environ)
+    (let* ((static-var (lookup-main name (class.static-env class)))
+           (method (lookup-main name (class.method-env class)))
+           (parent (lookup-main (class.parent class) environ)))
       (if (eq? static-var 'null)
         (if (eq? method 'null)
           (lookup-in-class name parent instance environ)

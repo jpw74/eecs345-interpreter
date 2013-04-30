@@ -15,8 +15,10 @@
 ; The main interpret function
 ; Takes a filename
 (define interpret
-  (lambda (filename class)
-    (interpret-funcall '(funcall main) (interpret-class-list (parser filename) (new-environ) (lambda (v) v)) identity identity identity (string->symbol class) identity)))
+  (lambda (filename class-name)
+    (let* ((environ (interpret-class-list (parser filename) (new-environ) (lambda (v) v)))
+           (class (lookup-main (string->symbol class-name) environ)))
+    (interpret-funcall '(funcall main) environ identity identity identity class identity))))
 
 (define interpret-class-list
   (lambda (class-list environ k)
@@ -30,13 +32,11 @@
 ; adds the given class to the environment
 (define interpret-class
   (lambda (class environ)
-    (begin (display "class: ") (display class) (newline)
-           (display "environ: ") (display environ) (newline)
     (let* ((name (operand1 class))
           (parent (if (null? (operand2 class)) 'null (cadr (operand2 class))))
           (body (operand3 class))
           (class-env (class-def (new-environ) (new-environ) (new-environ) parent)))
-      (add name (interpret-class-body body class-env) environ)))))
+      (add name (interpret-class-body body class-env) environ))))
 
 (define interpret-class-body
   (lambda (body class-env)
@@ -182,7 +182,7 @@
                ;(if (eq? (lookup-in-class (operand1 stmt) class instance environ) 'null)
                  ;(error "Undefined function")              
                  (let* ((name (operand1 stmt))
-                        (closure (lookup-in-class name class instance environ)) 
+                        (closure (lookup name class instance environ)) 
                         (formal (closure.formal closure))
                         (body (closure.body closure))
                         (def-env ((closure.environ closure) environ))
@@ -207,15 +207,9 @@
 
 (define interpret-dot
   (lambda (stmt environ class instance)
-    ;(begin (display "stmt: ") (display stmt) (newline)
-     ;      (display "environ: ") (display environ) (newline)
-      ;     (display "class: ") (display class) (newline)
-       ;    (display "instance: ") (display instance) (newline)
     (if (eq? (operand1 stmt) 'super)
-      (let* ((class-env (lookup class class instance environ))
-             (parent (class.parent class-env)))
-        ;(begin (display "parent: ") (display parent) (newline) 
-               (lookup-in-class (operand2 stmt) parent instance environ))
+      (let ((parent (lookup-main (class.parent class) environ)))
+            (lookup-in-class (operand2 stmt) parent instance environ))
       (lookup-in-class (operand2 stmt) class instance environ))))
       
 ; Evaluates expressions and handles all mathematical operators in order of precedence
