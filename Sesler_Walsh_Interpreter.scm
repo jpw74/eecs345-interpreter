@@ -1,7 +1,7 @@
 ; Timothy Sesler
 ; Jason Walsh
-; EECS 345 - Interpreter Project, Part IV
-; 17 April 2013
+; EECS 345 - Interpreter Project, Part V
+; 29 April 2013
 
 ; An interpreter for a simple Java-like language that handles variables, assignment 
 ;   statements, function declaration, function execution (call-by-value and call-by-reference), 
@@ -9,8 +9,46 @@
 ;   statements, and return statements.
 
 (load "classParser.scm")
-(load "environment.scm")
-(load "lib.scm")
+;(load "environment.scm")
+;(load "lib.scm")
+
+; As you've probably noticed, this section of the interpreter is incredibly incomplete.  We simply do not know how to translate the ideas explained in class into workable code.
+;
+;The ideas as we would have implemented them are explained below:
+;=============================================================================================================================================================================
+;- The 'new' operator
+;	: interpret-new should evaluate the class name and look it up in the environment
+;	: it should look for a constructor in that class
+;	: it must then create an instance (list of variables and a class)
+;	: it then should initialize the class and run the constructor
+;	: if dealing with a subclass, the parent class's constructor should be called instead
+;		= check the first line of the constructor for a constructor call
+;		= if it exists, use it
+;		= if not, use the parent constructor by default
+;		= initialize all instance field values by using the initial expression or assign values of 0
+;		= then execute the remainder of the construction body
+;	: return the instance
+;
+;- Throwing and catching exceptions
+;	: There are four ways to exit from a try / catch block
+;		1. Execution reaches the end of the block
+;		2. An exception is thrown
+;		3. Return statements
+;		4. Break and continue
+;	: when a catch block is interpreted, set up a continuation using call/cc to jump to that point in the code
+;	: interpret-catch has this initial structure: (lambda () (interpret-block body-of-catch (lambda (v) (add exception-name v current-environ)) return break continue class instance)
+;	: the previous is the continuation to be passed when catch is interpreted	
+;	: in interpret-stmt we would include the line ((eq? (operator stmt) 'throw (throw (evaluate-expr (operand1 stmt)))
+;	: interpret-stmt would also be changed to include a 'throw' in its input parameters
+
+
+
+
+
+
+; ====================================================================================================================================
+; Interpreter starts here
+; ====================================================================================================================================
 
 ; The main interpret function
 ; Takes a filename
@@ -80,7 +118,9 @@
       ((eq? 'function (operator stmt)) (interpret-fundef stmt environ class instance))
       ((eq? 'funcall (operator stmt)) (interpret-funcall stmt environ return continue break class instance))
       ((eq? 'break (operator stmt)) (break environ))
-      ((eq? 'continue (operator stmt)) (continue environ)))))
+      ((eq? 'continue (operator stmt)) (continue environ))
+      ;((eq? (operator stmt) 'throw (throw (evaluate-expr (operand1 stmt)))))
+      ((eq? 'new (operator stmt)) (error "New doesn't exist. Why are you using  this?")))))
 
 ; Interprets variable declarations
 ; Takes a statement and an environment
@@ -223,3 +263,213 @@
       ((eq? '= (operator expr)) (lookup (operand1 expr) class instance (interpret-assign expr environ)))                  
       ((eq? 'funcall (operator expr)) (interpret-funcall expr environ identity identity identity class instance))
       (else ((atom-to-func (operator expr)) (evaluate-expr (operand1 expr) environ class instance) (evaluate-expr (operand2 expr) environ class instance))))))
+
+; Creates a new environment
+; Takes no input
+(define new-environ
+  (lambda ()
+    '(()())))
+
+; Adds a layer onto the specified environment
+; Takes an environment to add a layer on
+(define layer
+  (lambda (environ)
+    (cons (new-environ) environ)))
+
+; Pops the first layer off of the specified environment
+; Takes an environment
+(define unlayer
+  (lambda (environ)
+    (cdr environ)))
+
+; Adds a box to the environment
+; Takes a name, a box, and an envirnoment
+(define add-box
+  (lambda (name b environ)
+    (if (> (length environ) 2)
+      (cons (add-box name b (car environ)) (cdr environ))
+      (list (cons name (vars environ)) (cons b (vals environ))))))
+
+; Adds an element to the environment
+; Takes a variable name, a value for that variable, and an environment
+(define add
+  (lambda (variable value environ)
+    (let ((b (get-box variable environ)))
+      (if (eq? 'null b)
+        (if (> (length environ) 2)
+          (cons (add variable value (car environ)) (cdr environ))
+          (list (cons variable (vars environ)) (cons (box value) (vals environ))))
+        (begin
+          (set-box! b value) 
+          environ)))))
+
+; Adds an element to a 
+(define shallow-add
+  (lambda (variable value environ)
+    (if (> (length environ) 2)
+      (cons (add variable value (car environ)) (cdr environ))
+      (add variable value environ))))
+
+; takes a name and an environment and returns a value
+; environment should be structured as a list of variables and a list of values
+(define lookup-main
+  (lambda (variable environ)
+    (if (> (length environ) 2)
+      (let ((val (lookup-main variable (car environ))))
+        (if (eq? val 'null)
+          (lookup-main variable (cdr environ))
+          val))
+      (cond
+        ((and (null? (vars environ)) (null? (vals environ))) 'null)
+        ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
+        (else (lookup-main variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+
+(define lookup-in-class 
+  (lambda (name class instance environ)
+    (let* ((static-var (lookup-main name (class.static-env class)))
+           (method (lookup-main name (class.method-env class)))
+           (parent (lookup-main (class.parent class) environ)))
+      (if (eq? static-var 'null)
+        (if (eq? method 'null)
+          (lookup-in-class name parent instance environ)
+          method)
+        static-var))))
+
+(define lookup
+  (lambda (name class instance environ)
+    (if (eq? (lookup-main name environ) 'null)
+      (lookup-in-class name class instance environ)
+      (lookup-main name environ))))
+
+; Checks for redeclaration of variables
+; Takes a variable and an environment
+(define shallow-lookup
+  (lambda (variable environ)
+    (if (> (length environ) 2)
+      (lookup-main variable (car environ))
+      (cond
+        ((and (null? (vars environ)) (null? (vals environ))) 'null)
+        ((eq? variable (car (vars environ))) (unbox (car (vals environ))))
+        (else (lookup-main variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+
+; Returns the car of the specified environment (the variable name)
+(define vars
+  (lambda (environ)
+    (car environ)))
+
+; Returns the car of the cdr of the specfied environment (the value bound to the variable)
+(define vals
+  (lambda (environ)
+    (car (cdr environ))))
+
+; Returns the box containing the specified variable
+; Takes a variable and an environment
+(define get-box
+  (lambda (variable environ)
+    (if (> (length environ) 2)
+      (let ((b (get-box variable (car environ))))
+        (if (eq? b 'null)
+          (get-box variable (cdr environ))
+          b))
+      (cond
+        ((and (null? (vars environ)) (null? (vals environ))) 'null)
+        ((eq? variable (car (vars environ))) (car (vals environ)))
+        (else (get-box variable (list (cdr (vars environ)) (cdr (vals environ)))))))))
+
+; Helper function to assist evaluate-expr
+; Applies the appropriate mathematical operator
+(define atom-to-func
+  (lambda (atom)
+    (cond
+      ((eq? '* atom) *)
+      ((eq? '/ atom) quotient)
+      ((eq? '% atom) modulo)
+      ((eq? '+ atom) +)
+      ((eq? '- atom) -)
+      ((eq? '< atom) <)
+      ((eq? '<= atom) <=)
+      ((eq? '> atom) >) 
+      ((eq? '>= atom) >=) 
+      ((eq? '== atom) equal?))))
+
+(define class-def
+  (lambda (static-env instance-env method-env parent)
+    (list static-env instance-env method-env parent)))
+
+; Returns the operator of a statement
+; Takes a statement
+(define operator
+  (lambda (stmt)
+    (car stmt)))
+
+; Returns the first operand of a statement
+; Takes a statement
+(define operand1
+  (lambda (stmt)
+    (if (null? (cdr stmt))
+      '()
+      (car (cdr stmt)))))
+
+; Returns the second operand of a statement
+; Takes a statement
+(define operand2
+  (lambda (stmt)
+    (if (null? (cdr (cdr stmt)))
+      '()
+      (car (cdr (cdr stmt))))))
+
+; Returns the third operand of a statement
+; Takes a statement
+(define operand3
+  (lambda (stmt)
+    (if (null? (cdr (cdr (cdr stmt))))
+      '()
+      (car (cdr (cdr (cdr stmt)))))))
+
+; Returns the formal arguments of the function closure
+(define closure.formal
+  (lambda (closure)
+    (car closure)))
+
+; Returns the body of the function closure
+(define closure.body
+  (lambda (closure)
+    (car (cdr closure))))
+
+; Returns the environment of the function closure
+(define closure.environ
+  (lambda (closure)
+    (car (cdr (cdr closure)))))
+
+(define class.static-env
+  (lambda (class)
+    (car class)))
+
+(define class.instance-env
+  (lambda (class)
+    (cadr class)))
+
+(define class.method-env
+  (lambda (class)
+    (caddr class)))
+
+(define class.parent
+  (lambda (class)
+    (cadddr class)))
+
+;(define box
+ ; (lambda (v)
+  ;  (list v)))
+
+;(define unbox
+ ; (lambda (b)
+  ;  (car b)))
+
+;(define set-box!
+ ; (lambda (b v)
+  ;  (set-car! b v)))
+
+; A dummy function to be placed as a generic parameter
+;(define identity
+ ; (lambda (v)
+  ;  v))
