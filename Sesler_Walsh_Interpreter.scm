@@ -52,7 +52,7 @@
           (method-env (class.method-env class-env))
           (parent (class.parent class-env)))
       (cond
-        ((eq? 'static-var (operator body-stmt)) (class-def (interpret-decl body-stmt static-env class-env instance-env) instance-env method-env parent))
+        ((eq? 'static-var (operator body-stmt)) (class-def (interpret-static-decl body-stmt static-env class-env instance-env) instance-env method-env parent))
         ((eq? 'static-function (operator body-stmt)) (class-def static-env instance-env (interpret-fundef body-stmt method-env) parent))))))
 
 
@@ -95,6 +95,17 @@
           (let ((new-env (interpret-assign (operand2 stmt) environ class instance)))
             (shallow-add (operand1 stmt) (lookup (operand1 (operand2 stmt)) new-env) name class instance new-env))
           (shallow-add (operand1 stmt) (evaluate-expr (operand2 stmt) environ class instance) environ))))))
+
+(define interpret-static-decl
+  (lambda (stmt environ class instance)
+    (let ((static-env (class.static-env class))
+          (parent (lookup-main (class.parent class) environ)))
+    (if (not (eq? 'null (shallow-lookup (operand1 stmt) environ))) (error "Redeclaring variable")
+      (if (null? (operand2 stmt))
+        (shallow-add (operand2 stmt) '() static-env)
+        (if (and (list? (operand2 stmt)) (eq? '= (operator (operand2 stmt))))
+          (let ((new-env (interpret-assign (operand2 stmt) environ class instance)))
+            (shallow-add (operand1 stmt) (evaluate-expr (operand2 stmt) environ class instance) environ))))))))
 
 ; Interprets assignment statements
 ; Takes a statement and an environment
